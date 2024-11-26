@@ -91,7 +91,7 @@ WSGI_APPLICATION = 'reservoir_management.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'reservoir_management',
+        'NAME': 'reservoir_management_andhra',
         'USER': 'postgres',
         'PASSWORD': 'bhuvi',
         'HOST': '34.30.47.2',

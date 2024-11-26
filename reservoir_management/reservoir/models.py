@@ -1,18 +1,29 @@
 from django.db import models
-from forecast.models import State
+
 # Create your models here.
 class Reservoir(models.Model):
-    state = models.ForeignKey(State, on_delete=models.CASCADE)
-    district = models.CharField(max_length=100)  
-    name = models.CharField(max_length=255)  
-    agency_name = models.CharField(max_length=255)  
-    frl = models.FloatField()  
-    live_cap_frl = models.FloatField() 
-    level = models.FloatField() 
-    current_live_storage = models.FloatField()
-    year = models.IntegerField()  
-    month = models.IntegerField()  
+    name = models.CharField(max_length=200, default='Unknown')    
+    district = models.ForeignKey("forecast.District", on_delete=models.CASCADE,null=True)  
+    def __str__(self):
+        return f"{self.name}"
 
+class ReservoirData(models.Model):
+    reservoir = models.ForeignKey(Reservoir, on_delete=models.CASCADE)  # ForeignKey to Reservoir
+    basin = models.CharField(max_length=255)
+    district = models.ForeignKey("forecast.District", on_delete=models.CASCADE)
+    gross_capacity = models.FloatField()  # Assuming these values are numerical
+    current_level = models.FloatField()
+    current_storage = models.FloatField()
+    flood_cushion = models.FloatField()
+    inflow = models.FloatField()
+    outflow = models.FloatField()
+    year = models.IntegerField()  # Year as an integer
+    month = models.IntegerField()  # Month as an integer (1-12)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['reservoir', 'year']),  # Most important index for your query
+        ]
 
     def __str__(self):
-        return f"{self.name} - {self.state}"
+        return f"{self.reservoir.name} ({self.year}-{self.month})"
