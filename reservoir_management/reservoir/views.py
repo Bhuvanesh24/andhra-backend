@@ -35,7 +35,7 @@ def reservoirs_by_districts(request, district_id):
                 })
 
             # Return the response with the reservoirs data
-            return JsonResponse({"district": district.name, "reservoirs": reservoirs_data}, safe=False)
+            return JsonResponse(reservoirs_data, safe=False)
 
         except District.DoesNotExist:
             return JsonResponse({"error": "District not found"}, status=200)
@@ -74,10 +74,10 @@ def reservoir_by_id(request, reservoir_id, year):
                 })
 
             # Return the response with the reservoir data
-            return JsonResponse({"reservoir": reservoir.name, "year": year, "data": reservoir_data_list}, safe=False)
+            return JsonResponse( reservoir_data_list, safe=False)
 
         except Reservoir.DoesNotExist:
-            return JsonResponse({"error": "Reservoir not found"}, status=404)
+            return JsonResponse({"error": "Reservoir not found"}, status=200)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
@@ -125,10 +125,10 @@ def reservoir_by_id_five(request, reservoir_id, year):
                 })
 
             # Return the response with the reservoir data for the past 5 years
-            return JsonResponse({"reservoir": reservoir.name, "year": year, "data": reservoir_data_list}, safe=False)
+            return JsonResponse( reservoir_data_list, safe=False)
 
         except Reservoir.DoesNotExist:
-            return JsonResponse({"error": "Reservoir not found"}, status=404)
+            return JsonResponse({"error": "Reservoir not found"}, status=200)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
