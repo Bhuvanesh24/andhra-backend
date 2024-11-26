@@ -1,13 +1,9 @@
-from django.shortcuts import render
 import requests
 from django.http import JsonResponse
 from forecast.models import District
 from .models import *
 from datetime import datetime
-from django.views.decorators.csrf import csrf_exempt
 import json
-from django.shortcuts import get_object_or_404
-from django.core.exceptions import ObjectDoesNotExist
 
 
 
@@ -23,7 +19,7 @@ def reservoirs_by_districts(request, district_id):
             
             # If no reservoirs exist for the district, return an error message
             if not reservoirs.exists():
-                return JsonResponse({"error": "No reservoirs found for the given district."}, status=404)
+                return JsonResponse({"error": "No reservoirs found for the given district."}, status=200)
 
             # Prepare reservoir data for the response
             reservoirs_data = []
@@ -53,7 +49,7 @@ def reservoir_by_id(request, reservoir_id, year):
 
             # If no reservoir data exists for the given year, return an error
             if not reservoir_data.exists():
-                return JsonResponse({"error": "No reservoir data found for the given year."}, status=404)
+                return JsonResponse({"error": "No reservoir data found for the given year."}, status=200)
 
             # Prepare the data to be returned as a response
             reservoir_data_list = []
@@ -89,7 +85,7 @@ def reservoir_by_id_five(request, reservoir_id, year):
 
             # Handle the case where the year is less than 2017 (minimum available data year)
             if year < 2017:
-                return JsonResponse({"error": "No data available for the selected year or earlier."}, status=404)
+                return JsonResponse({"error": "No data available for the selected year or earlier."}, status=200)
 
             # If the year is 2017 or later, fetch data for the last 5 years
             current_year = datetime.now().year
@@ -104,7 +100,7 @@ def reservoir_by_id_five(request, reservoir_id, year):
 
             # If no reservoir data exists for the past 5 years, return an error
             if not reservoir_data.exists():
-                return JsonResponse({"error": "No reservoir data found for the past 5 years."}, status=404)
+                return JsonResponse({"error": "No reservoir data found for the past 5 years."}, status=200)
 
             # Prepare the data to be returned as a response
             reservoir_data_list = []
