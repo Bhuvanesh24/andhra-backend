@@ -12,6 +12,11 @@ FASTAPI_URL = "http://127.0.0.1:8001/forecast/predict/"
 def test(request):
     return JsonResponse({"test":"Fine"})
 
+def get_dist(request):
+    if request.method == "GET":
+        districts = District.objects.all()
+        return JsonResponse(list(districts.values()),safe=False)
+    
 
 def get_landuse(request, year):
     """
