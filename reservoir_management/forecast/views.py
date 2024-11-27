@@ -46,6 +46,30 @@ def get_landuse(request, year):
     except Exception as e:
         # Handle unexpected errors
         return JsonResponse({"error": str(e)}, status=500)
+    
+def get_evaporation(request,district_id,year):
+    if request.method == "GET":
+        try:
+            district = District.objects.get(id=district_id)
+            evaporation_data = Evaporation.objects.filter(district=district, year=year)
+            serialized_data = [
+                {
+                    "evapo_transpiration": evaporation.evapo_transpiration,
+                    "total_evaporation": evaporation.total_evaporation,
+                    "month": evaporation.month,
+                }
+                for evaporation in evaporation_data
+            ]
+            return JsonResponse( serialized_data, status=200,safe=False)
+        except District.DoesNotExist:
+            return JsonResponse({"error": "District not found"}, status=200)
+        except Evaporation.DoesNotExist:
+            return JsonResponse({"error": "Evaporation data not found"}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+        
 # def get_population(request,year):
 #     if request.method == "GET":
 

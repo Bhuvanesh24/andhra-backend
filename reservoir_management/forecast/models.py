@@ -55,3 +55,14 @@ class Usage(models.Model):
 
     def __str__(self):
         return f"{self.district} - {self.year}/{self.month}"
+    
+
+class Evaporation(models.Model):
+    district = models.ForeignKey(District,on_delete=models.CASCADE)
+    evapo_transpiration = models.FloatField()
+    year = models.IntegerField(null=False)
+    month = models.IntegerField(null=False)
+    total_evaporation = models.FloatField()
+
+    def __str__(self):
+        return f"{self.district} - {self.year}/{self.month}"
