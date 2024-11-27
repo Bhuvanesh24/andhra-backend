@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class District(models.Model):
     name = models.CharField(max_length=100)
 
@@ -38,7 +37,7 @@ class Usage(models.Model):
     inflow_states = models.FloatField()  # Inflow From Other States
     ground_water = models.FloatField()
     soil_moisture = models.FloatField()
-    reservoir = models.ForeignKey("reservoir.Reservoir", on_delete=models.PROTECT)
+    reservoir = models.FloatField()
     major = models.FloatField()
     medium = models.FloatField()
     mi_tanks = models.FloatField()  # MI Tanks (Geotagged)

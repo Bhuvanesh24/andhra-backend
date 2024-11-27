@@ -21,4 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/forecast/',include('forecast.urls')),
     path('api/reservoir/',include('reservoir.urls')),
+    path('api/scenario/',include('scenario.urls')),
 ]

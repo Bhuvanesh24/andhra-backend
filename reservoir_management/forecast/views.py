@@ -47,6 +47,18 @@ def get_landuse(request, year):
         # Handle unexpected errors
         return JsonResponse({"error": str(e)}, status=500)
     
+
+def get_usage(request,district_id,year):
+    if request.method == "GET":
+        try:
+            district = District.objects.get(id=district_id)
+            water_usage = Usage.objects.filter(district=district,year=year)
+            if not water_usage:
+                return JsonResponse({"error":"No data available for the selected year"},status=200)
+            return JsonResponse(list(water_usage.values()),safe=False)
+        except ObjectDoesNotExist:
+            return JsonResponse({"error": "No data found for this district and year"}, status=200)
+        
 def get_evaporation(request,district_id,year):
     if request.method == "GET":
         try:
