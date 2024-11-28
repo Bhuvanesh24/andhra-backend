@@ -65,3 +65,15 @@ class Evaporation(models.Model):
 
     def __str__(self):
         return f"{self.district} - {self.year}/{self.month}"
+    
+class Rainfall(models.Model):
+    district = models.ForeignKey(District,on_delete=models.CASCADE)
+    normal = models.FloatField()
+    actual = models.FloatField()
+    year = models.IntegerField(null = False)
+    month = models.IntegerField(null = False)
+
+    def __str__(self):
+        return f"{self.district} - {self.year}/{self.month}"
+    
+# class Prediction(models.Model)

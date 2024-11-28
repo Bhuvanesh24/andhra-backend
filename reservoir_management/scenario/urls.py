@@ -3,5 +3,5 @@ from .views import *
 
 
 urlpatterns = [
-    path("get-scenario-data",get_data,name='get_scenario-datas'),
+    path("get-scenario-data/<int:district_id>/<int:year>/",get_data,name='get_scenario-datas'),
 ]

@@ -81,7 +81,31 @@ def get_evaporation(request,district_id,year):
             return JsonResponse({"error": str(e)}, status=500)
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
+
+def get_rainfall(request,district_id,year):
+    if request.method == "GET":
+        try:
+            district = District.objects.get(id=district_id)
+            rainfall_data = Rainfall.objects.filter(district=district, year=year)
+            serialized_data = [
+                {
+                    "normal": rainfall.normal,
+                    "actual": rainfall.actual,
+                    "month": rainfall.month,
+                }
+                for rainfall in rainfall_data
+            ]
+            return JsonResponse( serialized_data, status=200,safe=False)
+        except District.DoesNotExist:
+            return JsonResponse({"error": "District not found"}, status=200)
+        except Evaporation.DoesNotExist:
+            return JsonResponse({"error": "Rainfall data not found"}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
         
+
 # def get_population(request,year):
 #     if request.method == "GET":
 
