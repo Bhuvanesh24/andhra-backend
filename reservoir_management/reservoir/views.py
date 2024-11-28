@@ -127,3 +127,37 @@ def reservoir_by_id_five(request, reservoir_id, year):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
+
+def reservoir_prediction(request,reservoir_id,year):
+    if request.method == 'GET':
+        try:
+            # Fetch the reservoir based on the provided reservoir_id
+            reservoir = Reservoir.objects.get(id=reservoir_id)
+            
+            # Fetch the related ReservoirData for the specified year
+            reservoir_data = ReservoirPrediction.objects.filter(reservoir=reservoir, year=year)
+
+            # If no reservoir data exists for the given year, return an error
+            if not reservoir_data.exists():
+                return JsonResponse({"error": "No reservoir data found for the given year."}, status=200)
+
+            # Prepare the data to be returned as a response
+            reservoir_data_list = []
+            for data in reservoir_data:
+                reservoir_data_list.append({
+                    "id": data.id,
+                    "reservoir": data.reservoir.name,
+                    "district": data.district.name,  # Assuming district is a related model
+                    "gross_capacity": data.gross_capacity,
+                    "current_storage": data.current_storage,
+                    "year": data.year,
+                })
+
+            # Return the response with the reservoir data
+            return JsonResponse( reservoir_data_list, safe=False)
+
+        except Reservoir.DoesNotExist:
+            return JsonResponse({"error": "Reservoir not found"}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    

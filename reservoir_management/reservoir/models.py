@@ -27,3 +27,17 @@ class ReservoirData(models.Model):
 
     def __str__(self):
         return f"{self.reservoir.name} ({self.year}-{self.month})"
+    
+class ReservoirPrediction(models.Model):
+    reservoir = models.ForeignKey(Reservoir, on_delete=models.CASCADE)
+    district = models.ForeignKey("forecast.District", on_delete=models.CASCADE)
+    year = models.IntegerField()
+    gross_capacity = models.FloatField()
+    current_storage = models.FloatField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['reservoir', 'year']),
+        ]
+    def __str__(self):
+        return f"{self.reservoir.name} ({self.year})"
