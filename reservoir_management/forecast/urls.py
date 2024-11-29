@@ -9,6 +9,6 @@ urlpatterns = [
     path('get-rainfall/<int:district_id>/<int:year>/',get_rainfall,name="get_rainfall"),
     path('predict-usage/<int:district_id>/<int:year>/',get_predictions_usage, name='usage-predict'),
     path('predict-luc/<int:district_id>/<int:year>/',get_predictions_luc,name='luc-predict'),
-    path('get_landuse/<int:year>/', get_landuse, name='landuse-detail'),
+    path('get_landuse/<int:district_id>/<int:year>/', get_landuse, name='landuse-detail'),
     # path('get_population/<int:year>/', get_population, name='get-population'),
 ]

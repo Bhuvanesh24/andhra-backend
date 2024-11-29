@@ -18,35 +18,52 @@ def get_dist(request):
         return JsonResponse(list(districts.values()),safe=False)
     
 
-def get_landuse(request, year):
+def get_landuse(request, district_id,year):
     """
     View to fetch land use data for a specific year and return it as JSON.
     """
-    try:
-        # Fetch land use data for the given year
-        landuse_data = LandUse.objects.get(year=year)
+    if request.method == "GET":
+        try:
+            # Retrieve the district using the district_id
+            district = District.objects.get(id=district_id)
 
-        # Serialize the data into a dictionary
-        landuse_data_dict = {
-            "year": landuse_data.year,
-            "forest_use": landuse_data.forest_use,
-            "barren_use": landuse_data.barren_use,
-            "fallow_use": landuse_data.fallow_use,
-            "cropped_use": landuse_data.cropped_use,
-            "other_use": landuse_data.other_use,
-        }
+            # Filter predictions for the given district and year
+            predictive_data = LandusePast.objects.filter(district=district, year=year)
 
-        # Return serialized data as JSON response
-        return JsonResponse(landuse_data_dict, status=200, safe=False)
+            if not predictive_data.exists():
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"No prediction data found for district '{district.name}' in year {year}."
+                }, status=404)
 
-    except ObjectDoesNotExist:
-        # Handle the case where no data exists for the given year
-        return JsonResponse({"error": "No land use data found for this year."}, status=200)
+            # Format the data for JSON response
+            predictions = [
+                {
+                    "built_up": data.built_up,
+                    "agriculture": data.agriculuture,
+                    "forest": data.forest,
+                    "wasteland": data.wasteland,
+                    "wetlands": data.wetlands,
+                    "waterbodies": data.waterbodies,
+                    "year": data.year,
+                }
+                for data in predictive_data
+            ]
 
-    except Exception as e:
-        # Handle unexpected errors
-        return JsonResponse({"error": str(e)}, status=500)
-    
+            # Return the predictions in JSON format
+            return JsonResponse(predictions, status=200,safe=False)
+
+        except District.DoesNotExist:
+            return JsonResponse({
+                "status": "error",
+                "message": f"District with ID {district_id} not found."
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
 
 def get_usage(request,district_id,year):
     if request.method == "GET":
