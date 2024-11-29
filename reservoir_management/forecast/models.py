@@ -76,4 +76,30 @@ class Rainfall(models.Model):
     def __str__(self):
         return f"{self.district} - {self.year}/{self.month}"
     
-# class Prediction(models.Model)
+class LucPredictionDist(models.Model):
+    built_up = models.FloatField()
+    agriculuture = models.FloatField()
+    forest = models.FloatField()
+    wasteland = models.FloatField()
+    wetlands = models.FloatField()
+    waterbodies = models.FloatField()
+    year = models.IntegerField()
+    district = models.ForeignKey(District,on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.district} - {self.year}"
+     
+
+class UsagePredictionDist(models.Model):
+    district = models.ForeignKey(District,on_delete=models.CASCADE)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    rainfall = models.FloatField()
+    inflow_states = models.FloatField()
+    consumption = models.FloatField()
+    irrigation = models.FloatField()
+    industry = models.FloatField()
+    domestic = models.FloatField()
+
+    def __str__(self):
+        return f"{self.district} - {self.year}/{self.month}"

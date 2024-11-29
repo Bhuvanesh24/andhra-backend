@@ -1,10 +1,6 @@
 import requests
 from django.http import JsonResponse
 from .models import *
-from datetime import datetime
-from django.views.decorators.csrf import csrf_exempt
-import json
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
 
 FASTAPI_URL = "http://127.0.0.1:8001/forecast/predict/"  
@@ -106,100 +102,93 @@ def get_rainfall(request,district_id,year):
         return JsonResponse({"error": "Method not allowed"}, status=405)
         
 
-# def get_population(request,year):
-#     if request.method == "GET":
 
-#         population_data = Population.objects.filter(year=year)
-        
-#         if not population_data:
-#             return JsonResponse({"error": "Population data not found for the given state and year"}, status=404)
-        
-#         population_data_dict = population_data.values('year', 'total_population', 'urban_population', 'rural_population').first()
-        
-#         return JsonResponse(population_data_dict, status=200,safe=False)
-    
 
-# def water_usage(request,district_id,year):
-#     if request.method == "GET":
-#         district = get_object_or_404(District, id=district_id)
+def get_predictions_usage(request,district_id,year):
+    if request.method == "GET":
+        try:
+            # Retrieve the district using the district_id
+            district = District.objects.get(id=district_id)
 
-#         water_usage_data = Usage.objects.filter(district=district, year=year)
+            # Retrieve all predictions for the given year and district
+            predictive_data = UsagePredictionDist.objects.filter(year=year, district=district)
 
-#         if not water_usage_data.exists():
-#             return JsonResponse({
-#                 "message": f"No water usage data available for the selected year ({year}) and state ({state.name}).",
-#                 "data": None  
-#             }, status=200)
-
-        
-#         water_usage_dict = water_usage_data.values('year', 'state', 'domestic_use', 'industrial_use', 'irrigation_use').first()
-        
-#         return JsonResponse(water_usage_dict, status=200, safe=False)
-
-# @csrf_exempt
-# def predict_usage(request):
-#     """
-#     Django view to fetch data from the database, send it to FastAPI,
-#     and return the prediction.
-#     """
-#     if request.method == "POST":
-#         try:
-#             data = json.loads(request.body)            
-#             state_id = data.get("state_idx")
-#             target_year = data.get("target_year")
-
-#             if not state_id or not target_year:
-#                 return JsonResponse({"error": "state_idx and target_year are required in the request body."}, status=400)
+            if not predictive_data.exists():
+               
+                return JsonResponse({
+                    "message": f"No prediction data found for district '{district.name}' in year {year}."
+                }, status=404)
             
-#             state = State.objects.get(id=state_id)
-            
-#             last_three_years = [target_year - i - 1 for i in range(3)]
+            # Format the data for JSON response
+            predictions = [
+                {
+                    "month": data.month,
+                    "rainfall": data.rainfall,
+                    "inflow_states": data.inflow_states,
+                    "consumption": data.consumption,
+                    "irrigation": data.irrigation,
+                    "industry": data.industry,
+                    "domestic": data.domestic,
+                }
+                for data in predictive_data
+            ]
 
-           
-#             landuse_data = LandUse.objects.filter(state=state, year__in=last_three_years)
-#             population_data = Population.objects.filter(year__in=last_three_years)
-
-          
-#             structured_data = {}
-#             for population in population_data:
-#                 structured_data[population.year] = [
-#                     population.urban_population,
-#                     population.rural_population,
-#                 ]
-
-#             for landuse in landuse_data:
-#                 structured_data[landuse.year].extend(
-#                     [
-#                         landuse.forest_use,
-#                         landuse.barren_use,
-#                         landuse.other_use,
-#                         landuse.fallow_use,
-#                         landuse.cropped_use,
-#                     ]
-#                 )
+            # Return the predictions in JSON format
+            return JsonResponse(predictions, status=200,safe=False)
 
 
+        except District.DoesNotExist:
+            return JsonResponse({
+                "message": f"District with ID {district_id} not found."
+            }, status=200)
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
 
-#             payload = {
-#                 "state_idx": state_id,
-#                 "target_year": target_year,
-#                 "structured_data": structured_data,
-#             }
 
+def get_predictions_luc(request, district_id, year):
+    if request.method == "GET":
+        try:
+            # Retrieve the district using the district_id
+            district = District.objects.get(id=district_id)
+
+            # Filter predictions for the given district and year
+            predictive_data = LucPredictionDist.objects.filter(district=district, year=year)
+
+            if not predictive_data.exists():
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"No prediction data found for district '{district.name}' in year {year}."
+                }, status=404)
+
+            # Format the data for JSON response
+            predictions = [
+                {
+                    "built_up": data.built_up,
+                    "agriculture": data.agriculuture,
+                    "forest": data.forest,
+                    "wasteland": data.wasteland,
+                    "wetlands": data.wetlands,
+                    "waterbodies": data.waterbodies,
+                    "year": data.year,
+                }
+                for data in predictive_data
+            ]
+
+            # Return the predictions in JSON format
+            return JsonResponse(predictions, status=200,safe=False)
+
+        except District.DoesNotExist:
+            return JsonResponse({
+                "status": "error",
+                "message": f"District with ID {district_id} not found."
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
         
-          
-#             response = requests.post(FASTAPI_URL, json=payload)
-        
-#             if response.status_code == 200:
-#                 return JsonResponse(response.json(), safe=False)
-#             else:
-#                 return JsonResponse(
-#                     {"error": f"Failed to get prediction: {response.json()}"}, status=500
-#                 )
-
-#         except json.JSONDecodeError:
-#             return JsonResponse({"error": "Invalid JSON in request body."}, status=400)
-#         except State.DoesNotExist:
-#             return JsonResponse({"error": "State not found."}, status=404)
-#         except Exception as e:
-#             return JsonResponse({"error": str(e)}, status=500)

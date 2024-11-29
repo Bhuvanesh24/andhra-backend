@@ -6,9 +6,9 @@ urlpatterns = [
     path('get-districts/',get_dist,name='get-dist'),
     path('get-evapo/<int:district_id>/<int:year>/',get_evaporation,name='get-evap'),
     path('get-usage/<int:district_id>/<int:year>/',get_usage,name="water_usage"),
-    path('get-rainfall/<int:district_id>/<int:year>',get_rainfall,name="get_rainfall"),
-    # path('predict/', predict_usage, name='forecast-predict'),
+    path('get-rainfall/<int:district_id>/<int:year>/',get_rainfall,name="get_rainfall"),
+    path('predict-usage/<int:district_id>/<int:year>/',get_predictions_usage, name='usage-predict'),
+    path('predict-luc/<int:district_id>/<int:year>/',get_predictions_luc,name='luc-predict'),
     path('get_landuse/<int:year>/', get_landuse, name='landuse-detail'),
     # path('get_population/<int:year>/', get_population, name='get-population'),
-    # path('get_usage/<int:district_id>/<int:year>/', water_usage, name='usage'),
 ]
