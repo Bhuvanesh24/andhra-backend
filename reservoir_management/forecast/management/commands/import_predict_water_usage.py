@@ -1,14 +1,14 @@
 import csv
 import os
 from django.core.management.base import BaseCommand
-from forecast.models import District,UsagePredictionDist # Make sure you import the District model
+from forecast.models import District,Usage # Make sure you import the District model
 
 class Command(BaseCommand):
     help = 'Import reservoir data from reservoir.csv into the Reservoir model'
 
     def handle(self, *args, **kwargs):
         # Specify the path to your CSV file
-        csv_file_path = os.path.join(os.path.dirname(__file__), 'predicted_water_usage.csv')
+        csv_file_path = os.path.join(os.path.dirname(__file__), 'predicted_water_usage_with_luc.csv')
 
         # Open the CSV file
         try:

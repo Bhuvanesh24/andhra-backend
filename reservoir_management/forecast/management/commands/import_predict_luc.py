@@ -1,14 +1,14 @@
 import csv
 import os
 from django.core.management.base import BaseCommand
-from forecast.models import District,LucPredictionDist # Make sure you import the District model
+from forecast.models import District,LandusePast # Make sure you import the District model
 
 class Command(BaseCommand):
     help = 'Import reservoir data from reservoir.csv into the Reservoir model'
 
     def handle(self, *args, **kwargs):
         # Specify the path to your CSV file
-        csv_file_path = os.path.join(os.path.dirname(__file__), 'predicted_luc.csv')
+        csv_file_path = os.path.join(os.path.dirname(__file__), 'past_luc.csv')
 
         # Open the CSV file
         try:
@@ -21,7 +21,7 @@ class Command(BaseCommand):
                         district = District.objects.get(id=int(row['District']))
 
                         # Create and save a Reservoir object for each row in the CSV
-                        LucPredictionDist.objects.create(
+                        LandusePast.objects.create(
                             built_up = float(row['Built-Up']),
                             agriculuture = float(row['Agricultural']),
                             forest  = float(row['Forest']),
@@ -33,7 +33,7 @@ class Command(BaseCommand):
                         )
 
                         self.stdout.write(
-                            self.style.SUCCESS(f"Successfully added LucPrediction: {row['Year']} with District: {district.name}")
+                            self.style.SUCCESS(f"Successfully added LucPast: {row['Year']} with District: {district.name}")
                         )
                     except District.DoesNotExist:
                         self.stdout.write(

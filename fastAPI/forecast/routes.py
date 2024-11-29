@@ -21,3 +21,4 @@ async def predict(data: ForecastRequest):
         return prediction_response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {str(e)}")
+

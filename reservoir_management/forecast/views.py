@@ -1,8 +1,12 @@
 import requests
 from django.http import JsonResponse
 from .models import *
+import csv
 from django.core.exceptions import ObjectDoesNotExist
-
+from io import StringIO
+from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
+from django.core.files.storage import default_storage
 FASTAPI_URL = "http://127.0.0.1:8001/forecast/predict/"  
 
 def test(request):
@@ -102,8 +106,6 @@ def get_rainfall(request,district_id,year):
         return JsonResponse({"error": "Method not allowed"}, status=405)
         
 
-
-
 def get_predictions_usage(request,district_id,year):
     if request.method == "GET":
         try:
@@ -192,3 +194,79 @@ def get_predictions_luc(request, district_id, year):
                 "message": str(e)
             }, status=500)
         
+
+@csrf_exempt
+def retrain_and_update_data(request):
+    if request.method == "POST":
+        try:
+            # 1. Check if a file is included in the request
+            csv_file = request.FILES.get('file')
+            if not csv_file:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "No CSV file provided."
+                }, status=400)
+
+            # Save the uploaded file temporarily
+            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
+
+            # 2. Send the file to FastAPI for retraining
+            fastapi_url = "http://fastapi-url/retrain"  # Replace with the actual FastAPI endpoint
+            with open(temp_file_path, 'rb') as file:
+                response = requests.post(fastapi_url, files={"file": file})
+
+            # Check if FastAPI returned a successful response
+            if response.status_code != 200:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"FastAPI returned an error: {response.text}"
+                }, status=500)
+
+            # 3. Parse the output CSV received from FastAPI
+            output_csv = StringIO(response.text)
+            reader = csv.DictReader(output_csv)
+
+            # Start a transaction to update the database
+            with transaction.atomic():
+                for row in reader:
+                    try:
+                        # Fetch the district by ID
+                        district = District.objects.get(id=int(row['District']))
+
+                        # Update or create the record in LucPredictionDist
+                        LucPredictionDist.objects.update_or_create(
+                            district=district,
+                            year=int(row['Year']),
+                            defaults={
+                                "built_up": float(row['Built-Up']),
+                                "agriculuture": float(row['Agricultural']),
+                                "forest": float(row['Forest']),
+                                "wasteland": float(row['Wastelands']),
+                                "wetlands": float(row['Wetlands']),
+                                "waterbodies": float(row['Waterbodies']),
+                            }
+                        )
+                    except District.DoesNotExist:
+                        return JsonResponse({
+                            "status": "error",
+                            "message": f"District with ID {row['District']} not found."
+                        }, status=404)
+
+            # Cleanup temporary file
+            default_storage.delete(temp_file_path)
+
+            return JsonResponse({
+                "status": "success",
+                "message": "Database updated successfully."
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
+
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method. Use POST."
+    }, status=405)
