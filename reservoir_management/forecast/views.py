@@ -70,9 +70,20 @@ def get_usage(request,district_id,year):
         try:
             district = District.objects.get(id=district_id)
             water_usage = Usage.objects.filter(district=district,year=year)
+            predictions =[{
+                "month" : water.month,
+                "rainfall" : water.rainfall,
+                "inflow_state" : water.inflow_states,
+                "consumption" : water.consumption,
+                "irrigation" : water.irrigation,
+                "industry" : water.industry,
+                "domestic" : water.domestic,
+            }
+            for water in water_usage
+            ]
             if not water_usage:
                 return JsonResponse({"error":"No data available for the selected year"},status=200)
-            return JsonResponse(list(water_usage.values()),safe=False)
+            return JsonResponse(predictions , safe=False)
         except ObjectDoesNotExist:
             return JsonResponse({"error": "No data found for this district and year"}, status=200)
         
