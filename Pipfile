@@ -13,6 +13,10 @@ gradio-client = "*"
 fastapi = {extras = ["all"], version = "*"}
 django-cors-headers = "*"
 django-extensions = "*"
+torch = "*"
+pandas = "*"
+scikit-learn = "*"
+numpy = "*"
 
 [dev-packages]
 

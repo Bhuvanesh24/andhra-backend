@@ -28,3 +28,20 @@ def get_data(request, district_id, year):
             return JsonResponse({"error": "District not found"}, status=200)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+
+
+
+def get_simulator(request):
+    # Extract query parameters
+    evaporation = int(request.GET.get("evaporation", "0")) 
+    rainfall = int(request.GET.get("rainfall", "0"))
+    population = int(request.GET.get("population", "0"))
+    district_id = int(request.GET.get("district_id","0"))
+    # Simulated processing
+    result = {
+        "evaporation": evaporation,
+        "rainfall": rainfall,
+        "population": population,
+        "message": "Values received successfully!"
+    }
+    return JsonResponse(result)
