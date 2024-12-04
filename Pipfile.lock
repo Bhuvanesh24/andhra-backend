@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e69bafe7127a2c3c25c47ea454295e5b723caeda95f227c89c8c9fa8976702b5"
+            "sha256": "51a02a12b6f4f0c98e7ad90e2e0c5207c08d69dbbc126ca437adc574a63b9300"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -1068,11 +1068,11 @@
         },
         "safehttpx": {
             "hashes": [
-                "sha256:1d93b64023c00d5c53ea70ea36e773b8a0dba5eaf1a1eb188856584a0a4cf4d1",
-                "sha256:6e1bedf7767213300da5e4cb7e823e98edc934f17ca192d2e585111a2b899149"
+                "sha256:407cff0b410b071623087c63dd2080c3b44dc076888d8c5823c00d1e58cb381c",
+                "sha256:b356bfc82cee3a24c395b94a2dbeabbed60aff1aa5fa3b5fe97c4f2456ebce42"
             ],
-            "markers": "python_version >= '3.9'",
-            "version": "==0.1.1"
+            "markers": "python_version >= '3.10'",
+            "version": "==0.1.6"
         },
         "scikit-learn": {
             "hashes": [
@@ -1143,6 +1143,7 @@
                 "sha256:edaf02b82cd7639db00dbff629995ef185c8df4c3ffa71a5562a595765a06ce1",
                 "sha256:fef8c87f8abfb884dac04e97824b61299880c43f4ce675dd2cbeadd3c9b466d2"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.10'",
             "version": "==1.14.1"
         },
@@ -1191,7 +1192,7 @@
                 "sha256:0e4ab3d16522a255be6b28260b938eae2482f98ce5cc934cb08dce8dc3ba5835",
                 "sha256:44cedb2b7c77a9de33a8b74b2b90e9f50d11fcf25d8270ea525ad71a25374ff7"
             ],
-            "markers": "sys_platform != 'emscripten'",
+            "markers": "python_version >= '3.8'",
             "version": "==0.41.3"
         },
         "sympy": {
@@ -1271,7 +1272,7 @@
                 "sha256:7d85cc416e9382e69095b7bdf4afd9e3880418a2413feec7069d533d6b4e31cc",
                 "sha256:a48093786cdcde33cad18c2555e8532f34422074448fbc874186f0abd79565cd"
             ],
-            "markers": "python_version >= '2'",
+            "markers": "sys_platform == 'win32'",
             "version": "==2024.2"
         },
         "ujson": {

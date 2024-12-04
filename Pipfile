@@ -17,6 +17,7 @@ torch = "*"
 pandas = "*"
 scikit-learn = "*"
 numpy = "*"
+scipy = "*"
 
 [dev-packages]
 

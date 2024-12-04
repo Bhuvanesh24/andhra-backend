@@ -1,8 +1,12 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from forecast.models import District,Usage
-
+from datetime import datetime
+from django.db.models import Max
+from reservoir.models import ReservoirData
+import requests
 # Create your views here.
+FASTAPI_URL = "http://127.0.0.1:8001/scenario/predict/" 
 
 def get_data(request, district_id, year):
     if request.method == "GET":
@@ -37,11 +41,30 @@ def get_simulator(request):
     rainfall = int(request.GET.get("rainfall", "0"))
     population = int(request.GET.get("population", "0"))
     district_id = int(request.GET.get("district_id","0"))
-    # Simulated processing
-    result = {
+    print(district_id)
+    # Send request to FastAPI
+    latest_data = (
+        ReservoirData.objects.filter(district_id=district_id)
+        .annotate(latest_year=Max('year'), latest_month=Max('month'))
+        .order_by('-year', '-month')
+        .first()
+    )
+    if not latest_data:
+        return JsonResponse({"error": "No reservoir data available for the given district"}, status=404)
+
+    # Extract inflow and outflow
+    inflow = latest_data.inflow
+    outflow = latest_data.outflow
+
+
+    data = {
         "evaporation": evaporation,
         "rainfall": rainfall,
         "population": population,
-        "message": "Values received successfully!"
-    }
-    return JsonResponse(result)
+        "district": district_id,
+        "inflow": inflow,
+        "outflow": outflow,
+        }
+    response = requests.post(FASTAPI_URL, json=data)
+    # Return response from FastAPI
+    return JsonResponse(response.json(), status=200)

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from forecast.routes import router as forecast_router
+from scenario.routes import router as scenario_router
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="FastAPI Model Mediator")
 
@@ -13,7 +14,7 @@ app.add_middleware(
 
 # Include the forecast routes
 app.include_router(forecast_router, prefix="/forecast")
-
+app.include_router(scenario_router, prefix="/scenario")
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Reservoir Management API"}
