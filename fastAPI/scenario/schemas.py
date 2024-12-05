@@ -7,4 +7,4 @@ class ScenarioRequest(BaseModel):
     inflow: float
     outflow: float
     population: int
-    district: str
+    district: int
