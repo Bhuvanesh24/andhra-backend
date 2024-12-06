@@ -1,36 +1,26 @@
-from fastapi import FastAPI, HTTPException, Request, Depends,APIRouter
+from fastapi import FastAPI, HTTPException, APIRouter
 import torch
 import numpy as np
-from scipy.stats import norm
-from src.model import EnhancedLSTM
 import pandas as pd
+from scipy.stats import norm
 from .schemas import ScenarioRequest
 import os
+from src.model import EnhancedLSTM
 
+# Set base and data directories
 base_dir = os.getenv("BASE_DIR", os.path.dirname(os.path.abspath(__file__)))
-data_dir = os.path.join(base_dir,"data","usage.csv")
-# # Construct the path to the model
-# model_path = os.path.join(base_dir, "model", "usage_for_bhuvi.pt")
-# input_size = 14
-# output_size = 3
-# water_usage_model = EnhancedLSTM(input_size=input_size, lstm_layer_sizes=[128]*3, linear_layer_size=[64]*6, output_size=output_size)
-# water_usage_model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False))
-# water_usage_model.eval()
+data_dir = os.path.join(base_dir, "data", "usage.csv")
+model_path = os.path.join(base_dir, "model", "final_model.pt")
 
+# Define the router for FastAPI
 router = APIRouter()
 
-import pandas as pd
-import numpy as np
-import torch
-from scipy.stats import norm
-
-import pandas as pd
-import numpy as np
-import torch
-from scipy.stats import norm
-
-
-
+# Load the water usage model
+input_size = 14  # Adjust according to the model's input size
+output_size = 3  # Adjust according to the model's output size
+water_usage_model = EnhancedLSTM(input_size=input_size, lstm_layer_sizes=[1], linear_layer_size=[128] * 6, output_size=output_size)
+water_usage_model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False))
+water_usage_model.eval()
 
 def safe_float(value):
     """Replace NaN and infinite float values with None."""
@@ -39,81 +29,71 @@ def safe_float(value):
             return None
     return value
 
+import torch
+import numpy as np
+import pandas as pd
+from scipy.stats import norm
 
-
-def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, district):
+def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, water_usage_model, district):
     """
     Simulate and calculate the risk score for flood and drought, along with storage change details.
+
+    Parameters:
+    rainfall (list of float): Daily rainfall in mm for a month.
+    evaporation (list of float): Daily potential evapotranspiration (PET) in mm for a month.
+    inflow (float): Monthly reservoir inflow in m³.
+    outflow (float): Monthly reservoir outflow in m³.
+    population (int): Population of the region.
+    water_usage_model (callable): Predictive model for water usage based on population.
+    district (str): Name of the district for analysis.
+
+    Returns:
+    dict: Risk scores for flood and drought, including changes in inflow, outflow, and storage.
     """
-    water_balance = rainfall - evaporation
-    water_usage = 2e6  # Example value for water usage
+    # Calculate water balance (rainfall - evaporation)
+    water_balance = np.array(rainfall) - np.array(evaporation)
+    water_balance_mean = np.mean(water_balance)
 
-    # Load data from CSV
-    df = pd.read_csv(data_dir)
+    # District data and one-hot encoding
+    districts = [3, 6, 7, 9, 13, 10, 18, 20, 21, 23, 24, 25, 26]
+    onehot = [0] * 13
+    onehot[districts.index(district)] = 1
+    population_tensor = torch.tensor([[population]], dtype=torch.float32)
+    onehot_tensor = torch.tensor([onehot], dtype=torch.float32)
 
-    # Verify if the district exists in the DataFrame
-    if district not in df['District'].values:
-        raise ValueError(f"District '{district}' not found in the data.")
-
-    # One-hot encode the 'District' column and concatenate with the original DataFrame
-    one_hot = pd.get_dummies(df['District'], prefix='District')
-    df_encoded = pd.concat([df, one_hot], axis=1)
-
-    # Ensure that the column for the given district exists
-    district_column_name = f'District_{district}'
-    if district_column_name not in df_encoded.columns:
-        raise ValueError(f"Column '{district_column_name}' not found in the DataFrame.")
-
-    # Get the one-hot encoded row for the given district
-    district_data = df_encoded[df_encoded['District'] == district]
-    input = np.array(district_data[district_column_name].values.astype(int)).reshape(1, -1)
-    input = np.append(input, [[population]], axis=1)
-    input = torch.tensor(input, dtype=torch.float32).unsqueeze(0)
-
-    print("Input shape:", input.shape)
+    # Predict water usage or use default value
+    if water_usage_model:
+        water_usage = water_usage_model(torch.cat((onehot_tensor, population_tensor), dim=1).unsqueeze(0)).sum().item()
+    else:
+        water_usage = 2e6  # Default water usage (in m³)
 
     # Adjust inflow and outflow based on water balance
-    adjusted_inflow = inflow * (1 + water_balance / 100)
-    adjusted_outflow = outflow * (1 - water_balance / 100)
+    adjusted_inflow = inflow / 1e6 * (1 + water_balance_mean / 100)
+    adjusted_outflow = outflow / 1e6 * (1 - water_balance_mean / 100)
 
-    # Calculate net water balance and storage change
-    net_water_balance = water_balance + (adjusted_inflow - adjusted_outflow) / 1e6
-    storage_change = adjusted_inflow - adjusted_outflow
+    # Net water balance and storage change
+    net_water_balance = water_balance_mean + (adjusted_inflow - adjusted_outflow)
+    storage_change = (adjusted_inflow - adjusted_outflow) * 1e6
 
-    # Calculate SPEI
-    aggregated_balance = [water_balance, net_water_balance]
-    mu, sigma = np.mean(aggregated_balance), np.std(aggregated_balance)
+    # SPEI calculation: use the entire water balance for the month
+    aggregated_balance = water_balance  # Use all daily water balance values for SPEI
+    mu, sigma = aggregated_balance.mean(), aggregated_balance.std()
 
-    # Check for zero standard deviation
-    if sigma == 0:
-        spei = None  # or a default value like 0 or an error message
-    else:
-        spei = (net_water_balance - mu) / sigma
-
-    # Replace non-compliant float values with None
-    spei = safe_float(spei)
-    adjusted_inflow = safe_float(adjusted_inflow)
-    adjusted_outflow = safe_float(adjusted_outflow)
-    storage_change = safe_float(storage_change)
-
-    # Define flood and drought risks based on SPEI value
-    if spei is not None:
-        if spei <= -2:
-            drought_risk = "High Risk"
-            flood_risk = "Low Risk"
-        elif spei >= 2:
-            drought_risk = "Low Risk"
-            flood_risk = "High Risk"
-        else:
-            drought_risk = "Moderate Risk"
-            flood_risk = "Moderate Risk"
-    else:
-        drought_risk = "Unknown"
-        flood_risk = "Unknown"
+    # Avoid division by zero by ensuring sigma is at least 1
+    spei = (net_water_balance - mu) / max(sigma, 1)
 
     # Calculate drought and flood scores
-    drought_score = max(0, min(100, (1 - norm.cdf(spei)) * 100)) * (water_usage / 1e6) if spei is not None else None
-    flood_score = max(0, min(100, norm.cdf(spei) * 100)) * (water_usage / 1e6) if spei is not None else None
+    drought_score = max(0, min(100, (1 - norm.cdf(spei)) * 100))  # No scaling by water usage
+    flood_score = max(0, min(100, norm.cdf(spei) * 100))  # No scaling by water usage
+
+    # Adjusted scores based on water usage (optional)
+    drought_score_adjusted = drought_score * (water_usage / 1e6)
+    flood_score_adjusted = flood_score * (water_usage / 1e6)
+
+    # For Drought Risk: Low Risk if SPEI is between -2 and 0, Moderate Risk between -0.5 and -2, and High Risk if <= -2.5
+    drought_risk = "High Risk" if spei <= -2.5 else "Moderate Risk" if spei < -0.5 else "Low Risk"
+    flood_risk = "High Risk" if spei >= 2.5 else "Moderate Risk" if spei > 0.5 else "Low Risk"
+
 
     return {
         "SPEI": spei,
@@ -121,6 +101,8 @@ def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, dist
         "Flood Risk": flood_risk,
         "Drought Score": drought_score,
         "Flood Score": flood_score,
+        "Adjusted Drought Score": drought_score_adjusted,
+        "Adjusted Flood Score": flood_score_adjusted,
         "Adjusted Inflow": adjusted_inflow,
         "Adjusted Outflow": adjusted_outflow,
         "Storage Change": storage_change,
@@ -135,8 +117,9 @@ async def predict_risk(data: ScenarioRequest):
             inflow=data.inflow,
             outflow=data.outflow,
             population=data.population,
-            district=data.district
+            district=data.district,
+            water_usage_model = water_usage_model
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500,detail = str(e))

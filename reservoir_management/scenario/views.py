@@ -49,6 +49,7 @@ def get_simulator(request):
         .order_by('-year', '-month')
         .first()
     )
+    
     if not latest_data:
         return JsonResponse({"error": "No reservoir data available for the given district"}, status=404)
 
@@ -56,6 +57,8 @@ def get_simulator(request):
     inflow = latest_data.inflow
     outflow = latest_data.outflow
 
+    print(inflow)
+    print(outflow)
 
     data = {
         "evaporation": evaporation,
