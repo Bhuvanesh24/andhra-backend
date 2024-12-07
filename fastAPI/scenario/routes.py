@@ -63,17 +63,17 @@ def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, wate
 
     # Predict water usage or use default value
     if water_usage_model:
-        water_usage = water_usage_model(torch.cat((onehot_tensor, population_tensor), dim=1).unsqueeze(0)).sum().item()
+        water_usage = water_usage_model(torch.cat((onehot_tensor, population_tensor), dim=1).unsqueeze(0)).sum().item() * 1e5
     else:
-        water_usage = 2e6  # Default water usage (in m³)
+        water_usage = 2e4  # Default water usage (in m³)
 
     # Adjust inflow and outflow based on water balance
-    adjusted_inflow = inflow / 1e6 * (1 + water_balance_mean / 100)
-    adjusted_outflow = outflow / 1e6 * (1 - water_balance_mean / 100)
+    adjusted_inflow = inflow / 1e4 * (1 + water_balance_mean / 100)
+    adjusted_outflow = outflow / 1e4 * (1 - water_balance_mean / 100)
 
     # Net water balance and storage change
     net_water_balance = water_balance_mean + (adjusted_inflow - adjusted_outflow)
-    storage_change = (adjusted_inflow - adjusted_outflow) * 1e6
+    storage_change = (adjusted_inflow - adjusted_outflow) * 1e4
 
     # SPEI calculation: use the entire water balance for the month
     aggregated_balance = water_balance  # Use all daily water balance values for SPEI
@@ -82,17 +82,44 @@ def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, wate
     # Avoid division by zero by ensuring sigma is at least 1
     spei = (net_water_balance - mu) / max(sigma, 1)
 
-    # Calculate drought and flood scores
-    drought_score = max(0, min(100, (1 - norm.cdf(spei)) * 100))  # No scaling by water usage
-    flood_score = max(0, min(100, norm.cdf(spei) * 100))  # No scaling by water usage
+    # Map SPEI to drought and flood scores based on defined thresholds
+    if spei <= -2.5:
+        drought_score = 75 + (min(-spei - 2.5, 1) * 25)  # Very High (75-100)
+    elif -2.5 < spei <= -1.5:
+        drought_score = 50 + ((-spei - 1.5) / 1 * 25)  # High (50-75)
+    elif -1.5 < spei <= -0.5:
+        drought_score = 25 + ((-spei - 0.5) / 1 * 25)  # Moderate (25-50)
+    else:
+        drought_score = max(0, (1 - norm.cdf(spei)) * 25)  # Low (<25)
 
-    # Adjusted scores based on water usage (optional)
-    drought_score_adjusted = drought_score * (water_usage / 1e6)
-    flood_score_adjusted = flood_score * (water_usage / 1e6)
+    if spei >= 2.5:
+        flood_score = 75 + (min(spei - 2.5, 1) * 25)  # Very High (75-100)
+    elif 1.5 <= spei < 2.5:
+        flood_score = 50 + ((spei - 1.5) / 1 * 25)  # High (50-75)
+    elif 0.5 <= spei < 1.5:
+        flood_score = 25 + ((spei - 0.5) / 1 * 25)  # Moderate (25-50)
+    else:
+        flood_score = max(0, norm.cdf(spei) * 25)  # Low (<25)
 
-    # For Drought Risk: Low Risk if SPEI is between -2 and 0, Moderate Risk between -0.5 and -2, and High Risk if <= -2.5
-    drought_risk = "High Risk" if spei <= -2.5 else "Moderate Risk" if spei < -0.5 else "Low Risk"
-    flood_risk = "High Risk" if spei >= 2.5 else "Moderate Risk" if spei > 0.5 else "Low Risk"
+    # Scale scores based on water usage
+    drought_score_adjusted = drought_score * (water_usage / 1e4)
+    flood_score_adjusted = flood_score * (water_usage / 1e4)
+
+    # Assign risk levels based on SPEI with "Very High Risk" included
+    if spei <= -2.5:
+        drought_risk = "Very High Risk"
+    elif -2.5 < spei <= -0.5:
+        drought_risk = "High Risk" if spei <= -1.5 else "Moderate Risk"
+    else:
+        drought_risk = "Low Risk"
+
+    if spei >= 2.5:
+        flood_risk = "Very High Risk"
+    elif 0.5 <= spei < 2.5:
+        flood_risk = "High Risk" if spei >= 1.5 else "Moderate Risk"
+    else:
+        flood_risk = "Low Risk"
+
 
 
     return {
@@ -101,8 +128,6 @@ def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, wate
         "Flood Risk": flood_risk,
         "Drought Score": drought_score,
         "Flood Score": flood_score,
-        "Adjusted Drought Score": drought_score_adjusted,
-        "Adjusted Flood Score": flood_score_adjusted,
         "Adjusted Inflow": adjusted_inflow,
         "Adjusted Outflow": adjusted_outflow,
         "Storage Change": storage_change,
