@@ -41,21 +41,23 @@ def get_simulator(request):
     rainfall = float(request.GET.get("rainfall", "0"))
     population = int(request.GET.get("population", "0"))
     district_id = int(request.GET.get("district_id","0"))
+    inflow = int(request.GET.get("inflow"))
+    outflow = int(request.GET.get("outflow"))
     print(district_id)
     # Send request to FastAPI
-    latest_data = (
-        ReservoirData.objects.filter(district_id=district_id)
-        .annotate(latest_year=Max('year'), latest_month=Max('month'))
-        .order_by('-year', '-month')
-        .first()
-    )
+    # latest_data = (
+    #     ReservoirData.objects.filter(district_id=district_id)
+    #     .annotate(latest_year=Max('year'), latest_month=Max('month'))
+    #     .order_by('-year', '-month')
+    #     .first()
+    # )
     
-    if not latest_data:
-        return JsonResponse({"error": "No reservoir data available for the given district"}, status=404)
+    # if not latest_data:
+    #     return JsonResponse({"error": "No reservoir data available for the given district"}, status=404)
 
     # Extract inflow and outflow
-    inflow = latest_data.inflow
-    outflow = latest_data.outflow
+    # inflow = latest_data.inflow
+    # outflow = latest_data.outflow
 
     print(inflow)
     print(outflow)

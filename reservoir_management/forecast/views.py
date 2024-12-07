@@ -221,7 +221,23 @@ def get_predictions_luc(request, district_id, year):
                 "status": "error",
                 "message": str(e)
             }, status=500)
-        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @csrf_exempt
 def retrain_and_update_data(request):
