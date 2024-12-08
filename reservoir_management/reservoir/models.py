@@ -41,3 +41,20 @@ class ReservoirPrediction(models.Model):
         ]
     def __str__(self):
         return f"{self.reservoir.name} ({self.year})"
+    
+
+class ReservoirScore(models.Model):
+    reservoir = models.ForeignKey(Reservoir, on_delete=models.CASCADE)
+    year  = models.IntegerField()
+    mean_storage = models.FloatField()
+    flood_cushion = models.FloatField()
+    rainfall = models.FloatField()
+    evaporation = models.FloatField()
+    population = models.BigIntegerField()
+    age = models.IntegerField()
+    siltation = models.FloatField()
+    capacity = models.FloatField()
+    score = models.FloatField()
+
+    def __str__(self):
+        return f"{self.reservoir.name} ({self.year})"

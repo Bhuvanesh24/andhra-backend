@@ -4,8 +4,7 @@ from forecast.models import District
 from .models import *
 from datetime import datetime
 
-
-
+FASTAPI_URL = "http://127.0.0.1:8001/reservoir/predict_score/" 
 
 def reservoirs_by_districts(request, district_id):
     if request.method == 'GET':
@@ -161,3 +160,47 @@ def reservoir_prediction(request,reservoir_id,year):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
     
+
+def get_reservoir_score(request):
+    current_year = datetime.now().year
+    if request.method == 'GET':
+        year =  int(request.GET.get("year"))
+        res_id = int(request.GET.get("reservoir_id"))
+        if year > current_year:
+            data_dict = {
+            "mean_storage" : float(request.GET.get("mean-storage")),
+            "flood_cushion" : float(request.GET.get("flood-cushion")),
+            "rainfall" : float(request.GET.get("rainfall")),
+            "evaporation"  : float(request.GET.get("evaporation")),
+            "population" : int(request.GET.get("population")),
+            "age" : int(request.GET.get("age")),
+            "siltation" : float(request.GET.get("siltation")),
+            "capacity" : float(request.GET.get("capacity"))
+            }
+            
+            response = requests.post(FASTAPI_URL, json=data_dict)
+
+            if response.status_code == 200:
+                # If the response is successful, return the predicted score
+                result = response.json()
+                return JsonResponse({"predicted_score": result["predicted_score"]}, status=200)
+            else:
+                return JsonResponse({"error": "Error occurred while predicting the score."}, status=500)
+        else:
+            res = Reservoir.objects.get(id = res_id)
+            data = ReservoirScore.objects.get(year=current_year,reservoir = res)
+            data_dict = {
+                    "mean_storage": data.mean_storage,
+                    "flood_cushion": data.flood_cushion,
+                    "rainfall": data.rainfall,
+                    "evaporation": data.evaporation,
+                    "population": data.population,
+                    "siltation": data.siltation,
+                    "capacity": data.capacity,
+                    "score" : data.score
+            }
+            return JsonResponse(data_dict,safe=False)
+      
+
+        
+                                
