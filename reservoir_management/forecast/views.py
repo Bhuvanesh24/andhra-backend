@@ -6,8 +6,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from io import StringIO
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
+from django.db.models import Sum
 from django.core.files.storage import default_storage
-FASTAPI_URL = "http://127.0.0.1:8001/forecast/predict/"  
+from datetime import datetime
+
+FASTAPI_URL = "http://127.0.0.1:8001/forecast/"  
 
 def test(request):
     return JsonResponse({"test":"Fine"})
@@ -223,65 +226,66 @@ def get_predictions_luc(request, district_id, year):
             }, status=500)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@csrf_exempt
-def retrain_and_update_data(request):
-    if request.method == "POST":
+def get_factors(request, district_id, year):
+    if request.method == "GET":
         try:
-            # Check if a file is included in the request
-            csv_file = request.FILES.get('file')
-            if not csv_file:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "No CSV file provided."
-                }, status=400)
+            # Retrieve the district using the district_id
+            dist = District.objects.get(id=district_id)
+            year = int(year)
+            
+            if year < 2023:
+                return JsonResponse({"status": "error", "message": "No data found for the given parameters"}, status=200)
 
-            # Save the uploaded file temporarily
-            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
+            if year == 2023:
+                # Aggregate usage data for the given district and year
+                usage_data = Usage.objects.filter(district=dist, year=year,month=6).aggregate(
+                    rainfall=Sum("rainfall"),
+                    irrigation=Sum("irrigation"),
+                    industry=Sum("industry"),
+                    domestic=Sum("domestic"),
+                )
+            else:
+                # Fetch data from the prediction model
+                usage_data = Usage.objects.filter(district=dist, year=year,month=6).aggregate(
+                    rainfall=Sum("rainfall"),
+                    irrigation=Sum("irrigation"),
+                    industry=Sum("industry"),
+                    domestic=Sum("domestic"),
+                )
 
-            # Send the file to FastAPI
-            fastapi_url = "http://127.0.0.1:8001/forecast/retrain"  # Replace with the actual FastAPI endpoint
-            with open(temp_file_path, 'rb') as file:
-                response = requests.post(fastapi_url, files={"file": file})
+            if not usage_data:
+                return JsonResponse({"status": "error", "message": "No data found for the given parameters"}, status=404)
 
-            # Check if FastAPI returned a successful response
-            if response.status_code != 200:
-                return JsonResponse({
-                    "status": "error",
-                    "message": f"FastAPI returned an error: {response.text}"
-                }, status=500)
+            # Fetch land use data
+            landuse = LucPredictionDist.objects.filter(district=dist, year=year).first()
+            if not landuse:
+                return JsonResponse({"status": "error", "message": "No land use data found for the given parameters"}, status=404)
 
-            # Cleanup temporary file
-            default_storage.delete(temp_file_path)
+            # Prepare data dictionary
+            data_dict = {
+                "District": dist.id,
+                "Month": 6,
+                "Rainfall": usage_data["rainfall"],
+                "Irrigation": usage_data["irrigation"],
+                "Domestic": usage_data["domestic"],
+                "Industry": usage_data["industry"],
+                "Built-up": landuse.built_up,
+                "Agricultural": landuse.agriculuture,  # Ensure correct field name
+                "Forest": landuse.forest,
+                "Waterbodies": landuse.waterbodies,
+                "Wetlands": landuse.wetlands,
+                "Wasteland": landuse.wasteland,
+            }
+            print(data_dict)
+            # Make a POST request to the FastAPI endpoint
+            response = requests.post(f'{FASTAPI_URL}get-factors', json=data_dict)
 
-            return JsonResponse({
-                "status": "success",
-                "message": "File sent to FastAPI successfully.",
-                "data": response.json()
-            }, status=200)
+            if response.status_code == 200:
+                return JsonResponse(response.json(), status=200)
+            else:
+                return JsonResponse({"status": "error", "message": f"FastAPI error: {response.text}"}, status=response.status_code)
 
+        except District.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "District not found"}, status=404)
         except Exception as e:
-            return JsonResponse({
-                "status": "error",
-                "message": str(e)
-            }, status=500)
-
-    return JsonResponse({
-        "status": "error",
-        "message": "Invalid request method. Use POST."
-    }, status=405)
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)

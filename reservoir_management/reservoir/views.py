@@ -3,8 +3,10 @@ from django.http import JsonResponse
 from forecast.models import District
 from .models import *
 from datetime import datetime
+from django.core.files.storage import default_storage
+from django.views.decorators.csrf import csrf_exempt
 
-FASTAPI_URL = "http://127.0.0.1:8001/reservoir/predict_score/" 
+FASTAPI_URL = "http://127.0.0.1:8001/reservoir/" 
 
 def reservoirs_by_districts(request, district_id):
     if request.method == 'GET':
@@ -175,13 +177,12 @@ def get_reservoir_score(request):
             "population" : int(request.GET.get("population")),
             "age" : int(request.GET.get("age")),
             "siltation" : float(request.GET.get("siltation")),
-            "capacity" : float(request.GET.get("capacity"))
+            "capacity" : float(request.GET.get("capacity")),
             }
             
-            response = requests.post(FASTAPI_URL, json=data_dict)
+            response = requests.post(f'{FASTAPI_URL}/predict_score', json=data_dict)
 
             if response.status_code == 200:
-                # If the response is successful, return the predicted score
                 result = response.json()
                 return JsonResponse({"predicted_score": result["predicted_score"]}, status=200)
             else:
@@ -197,10 +198,57 @@ def get_reservoir_score(request):
                     "population": data.population,
                     "siltation": data.siltation,
                     "capacity": data.capacity,
+                    "age": data.age,
                     "score" : data.score
             }
-            return JsonResponse(data_dict,safe=False)
+            return JsonResponse({"data" : data_dict},safe=False)
       
 
         
                                 
+@csrf_exempt
+def retrain_and_update_data(request):
+    if request.method == "POST":
+        try:
+            # Check if a file is included in the request
+            csv_file = request.FILES.get('file')
+            if not csv_file:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "No CSV file provided."
+                }, status=400)
+
+            # Save the uploaded file temporarily
+            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
+
+            # Send the file to FastAPI
+            fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
+            with open(temp_file_path, 'rb') as file:
+                response = requests.post(fastapi_url, files={"file": file})
+
+            # Check if FastAPI returned a successful response
+            if response.status_code != 200:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"FastAPI returned an error: {response.text}"
+                }, status=500)
+
+            # Cleanup temporary file
+            default_storage.delete(temp_file_path)
+
+            return JsonResponse({
+                "status": "success",
+                "message": "File sent to FastAPI successfully.",
+                "data": response.json()
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
+
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method. Use POST."
+    }, status=405)
