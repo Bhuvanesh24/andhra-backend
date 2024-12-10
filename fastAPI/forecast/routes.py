@@ -9,7 +9,7 @@ import pickle
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_DIR = BASE_DIR / "forecast" / "models"
-model_path = os.path.join(MODEL_DIR,"usage_6.pt")
+model_path = os.path.join(MODEL_DIR,"model_fold_3.pt")
 pickle_path = os.path.join(MODEL_DIR,"usage_x.pkl")
 router = APIRouter()
 
