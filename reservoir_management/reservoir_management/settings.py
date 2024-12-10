@@ -97,6 +97,9 @@ DATABASES = {
         'PASSWORD': 'bhuvi',
         'HOST': '34.30.47.2',
         'PORT': '5432',  
+        'OPTIONS': {
+            'connect_timeout': 60,  # Timeout for connection in seconds
+        },
     }
 }
 

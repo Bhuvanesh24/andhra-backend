@@ -5,6 +5,11 @@ from .models import *
 from datetime import datetime
 from django.core.files.storage import default_storage
 from django.views.decorators.csrf import csrf_exempt
+import os
+from django.http import FileResponse
+import csv
+from io import StringIO
+from django.db import transaction
 
 FASTAPI_URL = "http://127.0.0.1:8001/reservoir/" 
 
@@ -226,21 +231,27 @@ def retrain_and_update_data(request):
             with open(temp_file_path, 'rb') as file:
                 response = requests.post(fastapi_url, files={"file": file})
 
-            # Check if FastAPI returned a successful response
-            if response.status_code != 200:
+            # Cleanup temporary file
+            default_storage.delete(temp_file_path)
+
+            # Handle response from FastAPI
+            if response.status_code == 200:
+                # Decode the CSV content from FastAPI response
+                csv_content = response.content.decode("utf-8")
+
+                # Call the update function with the CSV data
+                update_reservoir_predictions(csv_content)
+
+                return JsonResponse({
+                    "status": "success",
+                    "message": "Data successfully updated."
+                })
+
+            else:
                 return JsonResponse({
                     "status": "error",
                     "message": f"FastAPI returned an error: {response.text}"
                 }, status=500)
-
-            # Cleanup temporary file
-            default_storage.delete(temp_file_path)
-
-            return JsonResponse({
-                "status": "success",
-                "message": "File sent to FastAPI successfully.",
-                "data": response.json()
-            }, status=200)
 
         except Exception as e:
             return JsonResponse({
@@ -252,3 +263,41 @@ def retrain_and_update_data(request):
         "status": "error",
         "message": "Invalid request method. Use POST."
     }, status=405)
+
+
+
+def update_reservoir_predictions(csv_data):
+    """
+    Update the ReservoirPrediction table with data from a CSV file.
+
+    :param csv_data: CSV content as a string
+    """
+    try:
+        # Parse the CSV data
+        csv_file = StringIO(csv_data)
+        reader = csv.DictReader(csv_file)
+
+        # Start a transaction for batch updates
+        with transaction.atomic():
+            for row in reader:
+                # Fetch the related Reservoir and District objects
+                reservoir = Reservoir.objects.get(id=int(row["Reservoir"].strip()))
+                district = District.objects.get(id=row["District"].strip())
+
+                # Update or create a ReservoirPrediction entry
+                obj, created = ReservoirPrediction.objects.update_or_create(
+                    reservoir=reservoir,
+                    district=district,
+                    year=int(row["Year"]),
+                    defaults={
+                        "gross_capacity": float(row["Gross Capacity"]),
+                        "current_storage": float(row["Current Storage"]),
+                    }
+                )
+                if created:
+                    print(f"Created: {obj}")
+                else:
+                    print(f"Updated: {obj}")
+        print("Reservoir predictions successfully updated.")
+    except Exception as e:
+        print(f"An error occurred: {e}")

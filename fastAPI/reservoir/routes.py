@@ -80,8 +80,9 @@ async def retrain_model_endpoint(file: UploadFile = File(...)):
         with open(uploaded_file_path, "wb") as f:
             f.write(await file.read())
 
-        model_file = os.path.join(MODEL_DIR, "enhanced_res_6.pt")
+        model_file = os.path.join(MODEL_DIR, "enhanced_res_5.pt")
         retrain_model(uploaded_file_path,model_file)
+        
         # Define paths for required files
         
         scaler_x_file = os.path.join(DATA_DIR, "res_x.pkl")
@@ -97,6 +98,7 @@ async def retrain_model_endpoint(file: UploadFile = File(...)):
             output_file=output_file
         )
 
+        
         # Return the generated CSV file as a downloadable response
         return FileResponse(
             output_file,
@@ -107,6 +109,10 @@ async def retrain_model_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    finally:
+        # Cleanup: Delete the uploaded file
+        if uploaded_file_path and os.path.exists(uploaded_file_path):
+            os.remove(uploaded_file_path)
 
 class ResDataset(Dataset):
     def __init__(self, file, sequence_length=5):
@@ -133,9 +139,9 @@ class ResDataset(Dataset):
         self.y = self.standardize_data(self.y, self.scaler_y)
         
         # Save the scalers
-        with open('data/res_x.pkl', 'wb') as f:
+        with open(f'{DATA_DIR}res_x.pkl', 'wb') as f:
             pickle.dump(self.scaler_x, f)
-        with open('data/res_y.pkl', 'wb') as f:
+        with open(f'{DATA_DIR}res_y.pkl', 'wb') as f:
             pickle.dump(self.scaler_y, f)
 
     def remove_outliers(self, df, columns):
@@ -166,18 +172,17 @@ class ResDataset(Dataset):
         data = data.reshape(shape)
         return data
 
-    def _len_(self):
+    def __len__(self):
         return len(self.x)
 
-    def _getitem_(self, idx):
+    def __getitem__(self, idx):
         return torch.tensor(self.x[idx], dtype=torch.float32), torch.tensor(self.y[idx], dtype=torch.float32)
 
 
 def retrain_model(data_file, model_file): 
-    # Load dataset  
-    
-   
-    dataset = ResDataset(file=data_file) 
+    # Load dataset 
+    print("Called Retrain")
+    dataset = ResDataset(data_file) 
     train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     # Load model 
@@ -187,7 +192,7 @@ def retrain_model(data_file, model_file):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop 
-    num_epochs = 10 
+    num_epochs = 1 
     for epoch in range(num_epochs): 
         model.train() 
         for inputs, targets in train_loader: 
@@ -202,7 +207,6 @@ def retrain_model(data_file, model_file):
     # Save model 
     torch.save(model, model_file) 
     return model
-
 
 def predict_next_5_years_monthly(data_file, model_file, scaler_x_file, scaler_y_file, output_file):
     """
@@ -242,22 +246,17 @@ def predict_next_5_years_monthly(data_file, model_file, scaler_x_file, scaler_y_
 
         for year in range(1, 6):  # Next 5 years
             # Extract input features
-            inputs = district_data[['Gross Capacity', 'Current Storage','Inflow','Outflow']].tail(2).values
-           
+            inputs = district_data[['Gross Capacity', 'Current Storage']].tail(2).values
             inputs = scaler_x.transform(inputs)
-           
             gross = inputs[0][0]
             # Predict
             inputs = torch.tensor(inputs, dtype=torch.float32).to(device).unsqueeze(0)
-            
             with torch.no_grad():
                 outputs = model(inputs).cpu().numpy()
 
-           
             # Inverse transform to original scale
             outputs_original_scale = scaler_y.inverse_transform(outputs).flatten()
 
-          
             # Apply absolute value to ensure non-negative predictions
             outputs_original_scale = np.abs(outputs_original_scale)
 
@@ -270,11 +269,8 @@ def predict_next_5_years_monthly(data_file, model_file, scaler_x_file, scaler_y_
                 'Year': [new_year],
                 'Gross Capacity': [gross],
                 'Current Storage': [outputs[0][1]],
-                'Inflow' : [outputs[0][2]],
-                'Outflow' : [outputs[0][3]]
             })
 
-           
             # Append the new entry to district_data
             district_data = pd.concat([district_data, new_entry])
 
@@ -285,8 +281,6 @@ def predict_next_5_years_monthly(data_file, model_file, scaler_x_file, scaler_y_
                 'Year': new_year,
                 'Gross Capacity': original_gross_capacity,  # Keep the original value
                 'Current Storage': outputs_original_scale[1],
-                'Inflow' : np.exp(outputs_original_scale[2]),
-                'Outflow' : np.exp(outputs_original_scale[3])
             })
 
     # Save to CSV
