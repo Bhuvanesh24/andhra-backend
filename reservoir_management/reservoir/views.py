@@ -1,6 +1,6 @@
 import requests
 from django.http import JsonResponse
-from forecast.models import District
+from forecast.models import District,Evaporation,Rainfall
 from .models import *
 from datetime import datetime
 from django.core.files.storage import default_storage
@@ -10,7 +10,12 @@ from django.http import FileResponse
 import csv
 from io import StringIO
 from django.db import transaction
+from django.apps import apps
 
+
+# Evaporation = apps.get_model('forecast', 'Evaporation')
+# Rainfall = apps.get_model('forecast', 'Rainfall')
+# District = apss
 FASTAPI_URL = "http://127.0.0.1:8001/reservoir/" 
 
 def reservoirs_by_districts(request, district_id):
@@ -43,6 +48,7 @@ def reservoirs_by_districts(request, district_id):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
         
+
 def reservoir_by_id(request, reservoir_id, year):
     if request.method == 'GET':
         try:
@@ -75,57 +81,6 @@ def reservoir_by_id(request, reservoir_id, year):
                 })
 
             # Return the response with the reservoir data
-            return JsonResponse( reservoir_data_list, safe=False)
-
-        except Reservoir.DoesNotExist:
-            return JsonResponse({"error": "Reservoir not found"}, status=200)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-def reservoir_by_id_five(request, reservoir_id, year):
-    if request.method == 'GET':
-        try:
-            # Fetch the reservoir based on the provided reservoir_id
-            reservoir = Reservoir.objects.get(id=reservoir_id)
-
-            # Handle the case where the year is less than 2017 (minimum available data year)
-            if year < 2017:
-                return JsonResponse({"error": "No data available for the selected year or earlier."}, status=200)
-
-            # If the year is 2017 or later, fetch data for the last 5 years
-            current_year = datetime.now().year
-            start_year = max(2017, int(year) - 5)  # Ensure we don't go below 2017
-
-            # Fetch the related ReservoirData for the given reservoir and the last 5 years
-            reservoir_data = ReservoirData.objects.filter(
-                reservoir=reservoir,
-                year__gte=start_year,
-                year__lte=int(year)
-            ).order_by('year', 'month')  # Optional: Order by year and month
-
-            # If no reservoir data exists for the past 5 years, return an error
-            if not reservoir_data.exists():
-                return JsonResponse({"error": "No reservoir data found for the past 5 years."}, status=200)
-
-            # Prepare the data to be returned as a response
-            reservoir_data_list = []
-            for data in reservoir_data:
-                reservoir_data_list.append({
-                    "id": data.id,
-                    "reservoir": data.reservoir.name,
-                    "district": data.district.name,  # Assuming district is a related model
-                    "basin": data.basin,
-                    "gross_capacity": data.gross_capacity,
-                    "current_level": data.current_level,
-                    "current_storage": data.current_storage,
-                    "flood_cushion": data.flood_cushion,
-                    "inflow": data.inflow,
-                    "outflow": data.outflow,
-                    "year": data.year,
-                    "month": data.month,
-                })
-
-            # Return the response with the reservoir data for the past 5 years
             return JsonResponse( reservoir_data_list, safe=False)
 
         except Reservoir.DoesNotExist:
@@ -239,6 +194,33 @@ def calculate_reservoir_health_score(request):
     return JsonResponse({"score" : round(final_score, 2)},status = 200)
 
 
+def get_age_siltation(request):
+    if request.method == "GET":
+        dist_id = int(request.GET.get("district_id"))
+        year    = int(request.GET.get("year"))
+        month   = int(request.GET.get("month"))
+        res_id = int(request.GET.get("reservoir_id"))
+        
+        res = Reservoir.objects.get(id=res_id)
+        dist = District.objects.get(id=dist_id)
+        evap = Evaporation.objects.get(district = dist,year=year,month=month)
+        rain = Rainfall.objects.get(district=dist,year=year,month=month)
+
+        get = ReservoirScore.objects.get(reservoir = res,year=2024)
+        silt = get.siltation
+        age = get.age
+        evaporation = evap.total_evaporation
+        rainfall = rain.actual
+
+        return JsonResponse({"silt":silt,"age":age,"evaporation":evaporation,"rainfall":rainfall},status=200)
+    
+        
+
+        
+
+
+
+        
 
         
                                 
