@@ -185,7 +185,7 @@ def get_reservoir_score(request):
             "capacity" : float(request.GET.get("capacity")),
             }
             
-            response = requests.post(f'{FASTAPI_URL}/predict_score', json=data_dict)
+            response = requests.post(f'{FASTAPI_URL}predict_score', json=data_dict)
 
             if response.status_code == 200:
                 result = response.json()
@@ -211,62 +211,62 @@ def get_reservoir_score(request):
 
         
                                 
-@csrf_exempt
-def retrain_and_update_data(request):
-    if request.method == "POST":
-        try:
-            # Check if a file is included in the request
-            csv_file = request.FILES.get('file')
-            if not csv_file:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "No CSV file provided."
-                }, status=400)
+# @csrf_exempt
+# def retrain_and_update_data(request):
+#     if request.method == "POST":
+#         try:
+#             # Check if a file is included in the request
+#             csv_file = request.FILES.get('file')
+#             if not csv_file:
+#                 return JsonResponse({
+#                     "status": "error",
+#                     "message": "No CSV file provided."
+#                 }, status=400)
 
-            # Save the uploaded file temporarily
-            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
+#             # Save the uploaded file temporarily
+#             temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
 
-            # Send the file to FastAPI
-            fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
-            with open(temp_file_path, 'rb') as file:
-                response = requests.post(fastapi_url, files={"file": file})
+#             # Send the file to FastAPI
+#             fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
+#             with open(temp_file_path, 'rb') as file:
+#                 response = requests.post(fastapi_url, files={"file": file})
 
-            # Cleanup temporary file
-            default_storage.delete(temp_file_path)
+#             # Cleanup temporary file
+#             default_storage.delete(temp_file_path)
 
-            # Handle response from FastAPI
-            if response.status_code == 200:
-                # Decode the CSV content from FastAPI response
-                csv_content = response.content.decode("utf-8")
+#             # Handle response from FastAPI
+#             if response.status_code == 200:
+#                 # Decode the CSV content from FastAPI response
+#                 csv_content = response.content.decode("utf-8")
 
-                # Call the update function with the CSV data
-                update_reservoir_predictions(csv_content)
+#                 # Call the update function with the CSV data
+#                 update_reservoir_predictions(csv_content)
 
-                return JsonResponse({
-                    "status": "success",
-                    "message": "Data successfully updated."
-                })
+#                 return JsonResponse({
+#                     "status": "success",
+#                     "message": "Data successfully updated."
+#                 })
 
-            else:
-                return JsonResponse({
-                    "status": "error",
-                    "message": f"FastAPI returned an error: {response.text}"
-                }, status=500)
+#             else:
+#                 return JsonResponse({
+#                     "status": "error",
+#                     "message": f"FastAPI returned an error: {response.text}"
+#                 }, status=500)
 
-        except Exception as e:
-            return JsonResponse({
-                "status": "error",
-                "message": str(e)
-            }, status=500)
+#         except Exception as e:
+#             return JsonResponse({
+#                 "status": "error",
+#                 "message": str(e)
+#             }, status=500)
 
-    return JsonResponse({
-        "status": "error",
-        "message": "Invalid request method. Use POST."
-    }, status=405)
+#     return JsonResponse({
+#         "status": "error",
+#         "message": "Invalid request method. Use POST."
+#     }, status=405)
 
 
 
-def update_reservoir_predictions(csv_data):
+# def update_reservoir_predictions(csv_data):
     """
     Update the ReservoirPrediction table with data from a CSV file.
 

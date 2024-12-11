@@ -29,10 +29,7 @@ def safe_float(value):
             return None
     return value
 
-import torch
-import numpy as np
-import pandas as pd
-from scipy.stats import norm
+
 
 def simulate_risk_score(rainfall, evaporation, inflow, outflow, population, water_usage_model, district):
     """
