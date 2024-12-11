@@ -140,23 +140,23 @@ def calculate_reservoir_health_score(request):
     Returns:
     - float: Final reservoir health score (0-100).
     """
-    storage_tmc = request.GET.get("current_storage")
-    capacity_tmc = request.GET.get("gross_capacity")
-    siltation_tmc = request.GET.get("siltation")
-    flood_cushion_tmc = request.GET.get("flood_cushion")
-    evaporation_mm = request.GET.get("evaporation")
-    rainfall_mm = request.GET.get("rainfall")
-    age_years = request.GET.get("age")
-    design_life_years = request.GET.get("design_life")
+    storage_tmc = int(request.GET.get("current_storage"))
+    capacity_tmc = int(request.GET.get("gross_capacity"))
+    siltation_tmc = int(request.GET.get("siltation"))
+    flood_cushion_tmc = int(request.GET.get("flood_cushion"))
+    evaporation_mm = int(request.GET.get("evaporation"))
+    rainfall_mm = int(request.GET.get("rainfall"))
+    age_years = int(request.GET.get("age"))
+    design_life_years = int(request.GET.get("design_life"))
 
     # Weights for each parameter
     weights = {
         'storage_capacity_ratio': 0.25,
-        'siltation': 0.20,
+        'siltation': 0.10,
         'flood_cushion': 0.15,
         'evaporation': 0.10,
-        'age': 0.15,
-        'rainfall': 0.15
+        'age': 0.20,
+        'rainfall': 0.20
     }
 
     # 1. Storage/Capacity Ratio Score (higher is better)
