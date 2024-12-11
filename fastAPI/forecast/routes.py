@@ -1,235 +1,99 @@
-from fastapi import APIRouter, HTTPException, File, UploadFile
-from fastapi.responses import FileResponse
-import os
-import pandas as pd
 import torch
-import pickle
-import numpy as np
-from io import StringIO
-from sklearn.preprocessing import StandardScaler
-from torch.utils.data import DataLoader,Dataset
 import torch.nn as nn
+import torch.nn.functional as F
+from src.model import EnhancedLSTM
 from pathlib import Path
+import os
+from fastapi import FastAPI, HTTPException, APIRouter
+import pickle
 
-# Resolve the base directory of the application
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Define paths relative to the base directory
-UPLOAD_DIR = BASE_DIR / "forecast" / "uploads"
-OUTPUT_DIR = BASE_DIR / "forecast" / "outputs"
 MODEL_DIR = BASE_DIR / "forecast" / "models"
-DATA_DIR = BASE_DIR / "forecast" / "data"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-if not MODEL_DIR.exists():
-    raise FileNotFoundError(f"Model directory does not exist: {MODEL_DIR}")
-if not (MODEL_DIR / "enhanced_res_6.pt").exists():
-    raise FileNotFoundError(f"Model file does not exist: {MODEL_DIR / 'enhanced_res_6.pt'}")
-
+model_path = os.path.join(MODEL_DIR,"usage_6.pt")
+pickle_path = os.path.join(MODEL_DIR,"usage_x.pkl")
 router = APIRouter()
 
+@router.post("/get-factors/")
+async def get_factors_endpoint(request:dict):
+    """
+    API endpoint to compute input weightage factors for the LSTM model.
+    
+    Returns:
+        JSON response containing the computed weightage.
+    """
+    print("Got")
+    print(request)
 
-@router.post("/retrain")
-async def retrain_model_endpoint(file: UploadFile = File(...)):
-    """
-    Endpoint to upload a CSV file, retrain the model, and generate predictions for the next 5 years.
-    """
     try:
-        # Ensure it's a CSV file
-        if not file.filename.endswith('.csv'):
-            raise HTTPException(status_code=400, detail="Only CSV files are supported.")
+        # Define input size (adjust as per your model's requirement)
+        input_size = 12  # Example input size
+        
+        # Load the trained model from the specified path
+        model = torch.load(model_path, map_location='cpu')
+        data = request
+        values = [
+            data["District"],  
+            data["Month"],
+            data["Rainfall"],
+            data["Irrigation"],
+            data["Industry"],
+            data["Domestic"],
+            data["Built-up"],
+            data["Agricultural"],
+            data["Forest"],
+            data["Wasteland"],
+            data["Wetlands"],
+            data["Waterbodies"],
+        ]
+        input_data = torch.tensor(values, dtype=torch.float32).reshape(1, 1, 12)
+        
+        with open(pickle_path, 'rb') as f:
+            scaler_x = pickle.load(f)
+        
+        input_data_np = input_data.numpy().reshape(-1, input_size)
+        
+        print("Before Trans",input_data_np)
+        # Apply the scaler
+        scaled_input_data_np = scaler_x.transform(input_data_np)
+        print("After trans",scaled_input_data_np)
+        # Convert back to PyTorch tensor
+        input_data = torch.tensor(scaled_input_data_np, dtype=torch.float32).unsqueeze(1)
+        
+        # Compute weightage
+        weightage = compute_input_weightage(model, input_data)
 
-        # Save the uploaded file
-        uploaded_file_path = os.path.join(UPLOAD_DIR, file.filename)
-        with open(uploaded_file_path, "wb") as f:
-            f.write(await file.read())
-
-        # Define paths for required files
-        model_file = os.path.join(MODEL_DIR, "enhanced_res_6.pt")
-        scaler_x_file = os.path.join(DATA_DIR, "scaler_x.pkl")
-        scaler_y_file = os.path.join(DATA_DIR, "scaler_y.pkl")
-        output_file = os.path.join(OUTPUT_DIR, "predictions_next_5_years.csv")
-
-        # Call the prediction function
-        predict_next_5_years_monthly(
-            data_file=uploaded_file_path,
-            model_file=model_file,
-            scaler_x_file=scaler_x_file,
-            scaler_y_file=scaler_y_file,
-            output_file=output_file
-        )
-
-        # Return the generated CSV file as a downloadable response
-        return FileResponse(
-            output_file,
-            media_type="text/csv",
-            filename="predictions_next_5_years.csv"
-        )
-
+        
+        return {"weightage": weightage}
+    
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error computing factors: {str(e)}")
 
-class ResDataset(Dataset):
-    def _init_(self, file='data/res.csv', sequence_length=5):
-        super()._init_()
-        self.sequence_length = sequence_length
-        self.res = pd.read_csv(file)
-        
-        # Remove outliers
-        #self.res = self.remove_outliers(self.res, ['Gross Capacity', 'Current Storage', 'Inflow', 'Outflow'])
-        
-        self.reservoirs = set(self.res['Reservoir'])
-        self.x, self.y = self.generate_sequence()
-        
-
-        # Standardize the data column-wise
-        self.scaler_x = StandardScaler()
-        self.scaler_y = StandardScaler()
-        self.x = self.standardize_data(self.x, self.scaler_x)
-        self.y = self.standardize_data(self.y, self.scaler_y)
-        
-        # Save the scalers
-        with open('data/scaler_x.pkl', 'wb') as f:
-            pickle.dump(self.scaler_x, f)
-        with open('data/scaler_y.pkl', 'wb') as f:
-            pickle.dump(self.scaler_y, f)
-
-    def remove_outliers(self, df, columns):
-        for column in columns:
-            Q1 = df[column].quantile(0.25)
-            Q3 = df[column].quantile(0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-            df = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-        return df
-
-    def generate_sequence(self):
-        x, y = [], []
-        for res in self.reservoirs:
-            res_data = self.res[self.res['Reservoir'] == res].sort_values(['Year'])
-            for i in range(len(res_data) - self.sequence_length):
-                seq_x = res_data.iloc[i:i + self.sequence_length][['Gross Capacity', 'Current Storage']].values.astype(np.float32)
-                seq_y = res_data.iloc[i + self.sequence_length][['Gross Capacity', 'Current Storage']].values.astype(np.float32)
-                x.append(seq_x)
-                y.append(seq_y)
-        return np.array(x, dtype=np.float32), np.array(y, dtype=np.float32)  # Save as float
-
-    def standardize_data(self, data, scaler):
-        shape = data.shape
-        data = data.reshape(-1, shape[-1])
-        data = scaler.fit_transform(data)
-        data = data.reshape(shape)
-        return data
-
-    def _len_(self):
-        return len(self.x)
-
-    def _getitem_(self, idx):
-        return torch.tensor(self.x[idx], dtype=torch.float32), torch.tensor(self.y[idx], dtype=torch.float32)
-
-def retrain_model(data_file, model_file):
+def compute_input_weightage(model, input_data, normalize=False):
     """
-    Function to retrain the model using the uploaded data.
+    Computes the weightage of each input timestep or feature using gradients.
+
+    Args:
+        model (nn.Module): The trained LSTM model.
+        input_data (torch.Tensor): Input data of shape (batch_size, seq_length, input_size = 12).
+        normalize (bool): Whether to normalize the weightage to a range of 0-1.
+
+    Returns:
+        torch.Tensor: Normalized weightage of shape (batch_size, seq_length, input_size).
     """
-    
-    # Load dataset
-    dataset = ResDataset(data_file)
-    train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
-
-    # Load model
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = torch.load(model_file, map_location=device)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    
-    # Training loop 
-    num_epochs = 10 
-    for epoch in range(num_epochs): 
-        model.train() 
-        for inputs, targets in train_loader: 
-            inputs, targets = inputs.to(device), targets.to(device) 
-            optimizer.zero_grad() 
-            outputs = model(inputs) 
-            loss = criterion(outputs, targets) 
-            loss.backward() 
-            optimizer.step() 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}") 
-    
-    # Save model 
-    torch.save(model, model_file) 
-    return model
-
-
-def predict_next_5_years_monthly(data_file, model_file, scaler_x_file, scaler_y_file, output_file):
-    """
-    Function to generate predictions for the next 5 years (monthly).
-    """
-    data = pd.read_csv(data_file)
-    data.replace('-', 0, inplace=True)
-    data = data.dropna()
-
-    with open(scaler_x_file, 'rb') as f:
-        scaler_x = pickle.load(f)
-    with open(scaler_y_file, 'rb') as f:
-        scaler_y = pickle.load(f)
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = torch.load(model_file, map_location=device)
     model.eval()
+    input_data = input_data.requires_grad_(True)
 
-    predictions = []
-    for res in data['Reservoir'].unique():
-        district_data = data[data['Reservoir'] == res].sort_values(['Year']).tail(2)
-        district = district_data['District'].iloc[0]
-        # Store the original Gross Capacity value
-        original_gross_capacity = district_data['Gross Capacity'].values[0]
-        last_year = int(district_data['Year'].values[-1])
+    output = model(input_data)
+    output_sum = output.sum()
 
-        for year in range(1, 6):  # Next 5 years
-            # Extract input features
-            inputs = district_data[['Gross Capacity', 'Current Storage','Inflow','Outflow']].tail(2).values
-            inputs = scaler_x.transform(inputs)
-            gross = inputs[0][0]
-            # Predict
-            inputs = torch.tensor(inputs, dtype=torch.float32).to(device).unsqueeze(0)
-            with torch.no_grad():
-                outputs = model(inputs).cpu().numpy()
+    output_sum.backward()
 
-            # Inverse transform to original scale
-            outputs_original_scale = scaler_y.inverse_transform(outputs).flatten()
+    gradients = input_data.grad
 
-            # Apply absolute value to ensure non-negative predictions
-            outputs_original_scale = np.abs(outputs_original_scale)
+    weightage = torch.abs(gradients)
 
-            # Determine the new year
-            new_year = last_year + year
+    if normalize:
+        weightage = weightage / weightage.sum(dim=1, keepdim=True)
 
-            new_entry = pd.DataFrame({
-                'Reservoir' : [res],
-                'District': [district],
-                'Year': [new_year],
-                'Gross Capacity': [gross],
-                'Current Storage': [outputs[0][1]],
-                'Inflow' : [outputs[0][2]],
-                'Outflow' : [outputs[0][3]]
-            })
+    return weightage.squeeze().tolist()
 
-            # Append the new entry to district_data
-            district_data = pd.concat([district_data, new_entry])
-
-            # Append results
-            predictions.append({
-                'Reservoir' : res,
-                'District': district,
-                'Year': new_year,
-                'Gross Capacity': original_gross_capacity,  # Keep the original value
-                'Current Storage': outputs_original_scale[1],
-                'Inflow' : np.exp(outputs_original_scale[2]),
-                'Outflow' : np.exp(outputs_original_scale[3])
-            })
-
-    predictions_df = pd.DataFrame(predictions)
-    predictions_df.to_csv(output_file, index=False)
