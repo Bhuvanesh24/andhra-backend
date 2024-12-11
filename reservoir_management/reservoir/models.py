@@ -34,7 +34,9 @@ class ReservoirPrediction(models.Model):
     year = models.IntegerField()
     gross_capacity = models.FloatField()
     current_storage = models.FloatField()
-
+    rainfall = models.FloatField(null=True)
+    evaporation = models.FloatField(null=True)
+    month = models.IntegerField(null=True)
     class Meta:
         indexes = [
             models.Index(fields=['reservoir', 'year']),

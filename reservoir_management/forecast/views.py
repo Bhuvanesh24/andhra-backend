@@ -344,3 +344,8 @@ def retrain_and_update_data(request):
         "message": "Invalid request method. Use POST."
     }, status=405)
 
+
+
+
+
+# dist = ["Ananthapuramu","Guntur","Chittoor","Visakhapatnam","Tirupati","Kakinada","Vizianagaram","NTR","West Godavari","Anakapalli","Prakasam","Sri Sathya Sai","Palnadu","Eluru","Sri Potti Sriramulu Nellore","Kurnool","Srikakulam","Chittoor","Parvathipuram Manyam","Y.S.R Kadapa","Annamayya","Nandyal","Krishna","East Godavari","Alluri Sitharama Raju","Guntur","Ananthapuramu","Bapatla","Konaseema"]

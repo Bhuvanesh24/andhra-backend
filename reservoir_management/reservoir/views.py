@@ -168,105 +168,136 @@ def reservoir_prediction(request,reservoir_id,year):
             return JsonResponse({"error": str(e)}, status=500)
     
 
-def get_reservoir_score(request):
-    current_year = datetime.now().year
-    if request.method == 'GET':
-        year =  int(request.GET.get("year"))
-        res_id = int(request.GET.get("reservoir_id"))
-        if year > current_year:
-            data_dict = {
-            "mean_storage" : float(request.GET.get("mean-storage")),
-            "flood_cushion" : float(request.GET.get("flood-cushion")),
-            "rainfall" : float(request.GET.get("rainfall")),
-            "evaporation"  : float(request.GET.get("evaporation")),
-            "population" : int(request.GET.get("population")),
-            "age" : int(request.GET.get("age")),
-            "siltation" : float(request.GET.get("siltation")),
-            "capacity" : float(request.GET.get("capacity")),
-            }
-            
-            response = requests.post(f'{FASTAPI_URL}predict_score', json=data_dict)
+def calculate_reservoir_health_score(request):
+    """
+    Calculate the reservoir health score based on storage, capacity, siltation, flood cushion, evaporation, rainfall, and age.
 
-            if response.status_code == 200:
-                result = response.json()
-                return JsonResponse({"predicted_score": result["predicted_score"]}, status=200)
-            else:
-                return JsonResponse({"error": "Error occurred while predicting the score."}, status=500)
-        else:
-            res = Reservoir.objects.get(id = res_id)
-            data = ReservoirScore.objects.get(year=current_year,reservoir = res)
-            data_dict = {
-                    "mean_storage": data.mean_storage,
-                    "flood_cushion": data.flood_cushion,
-                    "rainfall": data.rainfall,
-                    "evaporation": data.evaporation,
-                    "population": data.population,
-                    "siltation": data.siltation,
-                    "capacity": data.capacity,
-                    "age": data.age,
-                    "score" : data.score
-            }
-            return JsonResponse({"data" : data_dict},safe=False)
-      
+    Parameters:
+    - storage_tmc (float): Current water storage in TMC.
+    - capacity_tmc (float): Maximum reservoir capacity in TMC.
+    - siltation_tmc (float): Siltation volume in TMC.
+    - flood_cushion_tmc (float): Available flood cushion in TMC.
+    - evaporation_mm (float): Evaporation loss in mm.
+    - rainfall_mm (float): Rainfall in mm.
+    - age_years (float): Age of the reservoir in years.
+    - design_life_years (float): Design life of the reservoir in years.
+
+    Returns:
+    - float: Final reservoir health score (0-100).
+    """
+    storage_tmc = request.GET.get("current_storage")
+    capacity_tmc = request.GET.get("gross_capacity")
+    siltation_tmc = request.GET.get("siltation")
+    flood_cushion_tmc = request.GET.get("flood_cushion")
+    evaporation_mm = request.GET.get("evaporation")
+    rainfall_mm = request.GET.get("rainfall")
+    age_years = request.GET.get("age")
+    design_life_years = request.GET.get("design_life")
+
+    # Weights for each parameter
+    weights = {
+        'storage_capacity_ratio': 0.25,
+        'siltation': 0.20,
+        'flood_cushion': 0.15,
+        'evaporation': 0.10,
+        'age': 0.15,
+        'rainfall': 0.15
+    }
+
+    # 1. Storage/Capacity Ratio Score (higher is better)
+    storage_capacity_ratio = (storage_tmc / capacity_tmc) * 100
+    storage_capacity_score = min(storage_capacity_ratio, 100)
+
+    # 2. Siltation Score (lower siltation is better)
+    siltation_impact = (siltation_tmc / capacity_tmc) * 100
+    siltation_score = max(100 - siltation_impact, 0)
+
+    # 3. Flood Cushion Score (higher is better)
+    flood_cushion_ratio = (flood_cushion_tmc / capacity_tmc) * 100
+    flood_cushion_score = min(flood_cushion_ratio, 100)
+
+    # 4. Evaporation Score (lower is better)
+    evaporation_score = max(100 - evaporation_mm / 10, 0)  # Scaling evaporation impact
+
+    # 5. Age Score (younger reservoirs are better)
+    age_ratio = (age_years / design_life_years) * 100
+    age_score = max(100 - age_ratio, 0)
+
+    # 6. Rainfall Score (higher rainfall is better)
+    rainfall_score = min(rainfall_mm / 10, 100)  # Scaling rainfall to a 0-100 range
+
+    # Weighted Sum of All Scores
+    final_score = (
+        storage_capacity_score * weights['storage_capacity_ratio'] +
+        siltation_score * weights['siltation'] +
+        flood_cushion_score * weights['flood_cushion'] +
+        evaporation_score * weights['evaporation'] +
+        age_score * weights['age'] +
+        rainfall_score * weights['rainfall']
+    )
+
+    return JsonResponse({"score" : round(final_score, 2)},status = 200)
+
+
 
         
                                 
-# @csrf_exempt
-# def retrain_and_update_data(request):
-#     if request.method == "POST":
-#         try:
-#             # Check if a file is included in the request
-#             csv_file = request.FILES.get('file')
-#             if not csv_file:
-#                 return JsonResponse({
-#                     "status": "error",
-#                     "message": "No CSV file provided."
-#                 }, status=400)
+@csrf_exempt
+def retrain_and_update_data(request):
+    if request.method == "POST":
+        try:
+            # Check if a file is included in the request
+            csv_file = request.FILES.get('file')
+            if not csv_file:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "No CSV file provided."
+                }, status=400)
 
-#             # Save the uploaded file temporarily
-#             temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
+            # Save the uploaded file temporarily
+            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
 
-#             # Send the file to FastAPI
-#             fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
-#             with open(temp_file_path, 'rb') as file:
-#                 response = requests.post(fastapi_url, files={"file": file})
+            # Send the file to FastAPI
+            fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
+            with open(temp_file_path, 'rb') as file:
+                response = requests.post(fastapi_url, files={"file": file})
 
-#             # Cleanup temporary file
-#             default_storage.delete(temp_file_path)
+            # Cleanup temporary file
+            default_storage.delete(temp_file_path)
 
-#             # Handle response from FastAPI
-#             if response.status_code == 200:
-#                 # Decode the CSV content from FastAPI response
-#                 csv_content = response.content.decode("utf-8")
+            # Handle response from FastAPI
+            if response.status_code == 200:
+                # Decode the CSV content from FastAPI response
+                csv_content = response.content.decode("utf-8")
 
-#                 # Call the update function with the CSV data
-#                 update_reservoir_predictions(csv_content)
+                # Call the update function with the CSV data
+                update_reservoir_predictions(csv_content)
 
-#                 return JsonResponse({
-#                     "status": "success",
-#                     "message": "Data successfully updated."
-#                 })
+                return JsonResponse({
+                    "status": "success",
+                    "message": "Data successfully updated."
+                })
 
-#             else:
-#                 return JsonResponse({
-#                     "status": "error",
-#                     "message": f"FastAPI returned an error: {response.text}"
-#                 }, status=500)
+            else:
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"FastAPI returned an error: {response.text}"
+                }, status=500)
 
-#         except Exception as e:
-#             return JsonResponse({
-#                 "status": "error",
-#                 "message": str(e)
-#             }, status=500)
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
 
-#     return JsonResponse({
-#         "status": "error",
-#         "message": "Invalid request method. Use POST."
-#     }, status=405)
+    return JsonResponse({
+        "status": "error",
+        "message": "Invalid request method. Use POST."
+    }, status=405)
 
 
 
-# def update_reservoir_predictions(csv_data):
+def update_reservoir_predictions(csv_data):
     """
     Update the ReservoirPrediction table with data from a CSV file.
 
