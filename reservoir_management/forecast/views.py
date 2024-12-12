@@ -226,19 +226,20 @@ def get_predictions_luc(request, district_id, year):
             }, status=500)
 
 
-def get_factors(request, district_id, year):
+def get_factors(request, district_id, year,month):
     if request.method == "GET":
         try:
             # Retrieve the district using the district_id
             dist = District.objects.get(id=district_id)
             year = int(year)
+            month = int(year)
             
-            if year < 2023:
+            if year < 2014:
                 return JsonResponse({"status": "error", "message": "No data found for the given parameters"}, status=200)
 
-            if year == 2023:
+            if year <= 2024:
                 # Aggregate usage data for the given district and year
-                usage_data = Usage.objects.filter(district=dist, year=year,month=6).aggregate(
+                usage_data = Usage.objects.filter(district=dist, year=year,month=month).aggregate(
                     rainfall=Sum("rainfall"),
                     irrigation=Sum("irrigation"),
                     industry=Sum("industry"),
@@ -246,7 +247,7 @@ def get_factors(request, district_id, year):
                 )
             else:
                 # Fetch data from the prediction model
-                usage_data = Usage.objects.filter(district=dist, year=year,month=6).aggregate(
+                usage_data = UsagePredictionDist.objects.filter(district=dist, year=year,month=month).aggregate(
                     rainfall=Sum("rainfall"),
                     irrigation=Sum("irrigation"),
                     industry=Sum("industry"),
@@ -257,14 +258,17 @@ def get_factors(request, district_id, year):
                 return JsonResponse({"status": "error", "message": "No data found for the given parameters"}, status=404)
 
             # Fetch land use data
-            landuse = LucPredictionDist.objects.filter(district=dist, year=year).first()
+            if year >=2023:
+                landuse = LucPredictionDist.objects.filter(district=dist, year=year).first()
+            else:
+                landuse = LandusePast.objects.filter(district=dist, year=year).first()
             if not landuse:
                 return JsonResponse({"status": "error", "message": "No land use data found for the given parameters"}, status=404)
 
             # Prepare data dictionary
             data_dict = {
                 "District": dist.id,
-                "Month": 6,
+                "Month": month,
                 "Rainfall": usage_data["rainfall"],
                 "Irrigation": usage_data["irrigation"],
                 "Domestic": usage_data["domestic"],
@@ -272,9 +276,6 @@ def get_factors(request, district_id, year):
                 "Built-up": landuse.built_up,
                 "Agricultural": landuse.agriculuture,  # Ensure correct field name
                 "Forest": landuse.forest,
-                "Waterbodies": landuse.waterbodies,
-                "Wetlands": landuse.wetlands,
-                "Wasteland": landuse.wasteland,
             }
             print(data_dict)
             # Make a POST request to the FastAPI endpoint
