@@ -18,6 +18,8 @@ from django.apps import apps
 # District = apss
 FASTAPI_URL = "http://127.0.0.1:8001/reservoir/" 
 
+
+
 def reservoirs_by_districts(request, district_id):
     if request.method == 'GET':
         try:

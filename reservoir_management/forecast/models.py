@@ -100,6 +100,12 @@ class UsagePredictionDist(models.Model):
     irrigation = models.FloatField()
     industry = models.FloatField()
     domestic = models.FloatField()
+    # built_up = models.FloatField(null=True)
+    # agriculuture = models.FloatField(null=True)
+    # forest = models.FloatField(null=True)
+    # wasteland = models.FloatField(null=True)
+    # wetlands = models.FloatField(null=True)
+    # waterbodies = models.FloatField(null=True)
 
     def __str__(self):
         return f"{self.district} - {self.year}/{self.month}"

@@ -9,9 +9,11 @@ import pickle
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_DIR = BASE_DIR / "forecast" / "models"
-model_path = os.path.join(MODEL_DIR,"model_fold_3.pt")
+model_path = os.path.join(MODEL_DIR,"enhanced_lstm.pt")
 pickle_path = os.path.join(MODEL_DIR,"usage_x.pkl")
 router = APIRouter()
+
+
 
 @router.post("/get-factors/")
 async def get_factors_endpoint(request:dict):
@@ -26,14 +28,12 @@ async def get_factors_endpoint(request:dict):
 
     try:
         # Define input size (adjust as per your model's requirement)
-        input_size = 12  # Example input size
+        input_size = 7  # Example input size
         
         # Load the trained model from the specified path
         model = torch.load(model_path, map_location='cpu')
         data = request
         values = [
-            data["District"],  
-            data["Month"],
             data["Rainfall"],
             data["Irrigation"],
             data["Industry"],
@@ -41,11 +41,8 @@ async def get_factors_endpoint(request:dict):
             data["Built-up"],
             data["Agricultural"],
             data["Forest"],
-            data["Wasteland"],
-            data["Wetlands"],
-            data["Waterbodies"],
         ]
-        input_data = torch.tensor(values, dtype=torch.float32).reshape(1, 1, 12)
+        input_data = torch.tensor(values, dtype=torch.float32).reshape(1, 1, 7)
         
         with open(pickle_path, 'rb') as f:
             scaler_x = pickle.load(f)
