@@ -76,7 +76,6 @@ def get_usage(request,district_id,year):
             predictions =[{
                 "month" : water.month,
                 "rainfall" : water.rainfall,
-                "inflow_state" : water.inflow_states,
                 "consumption" : water.consumption,
                 "irrigation" : water.irrigation,
                 "industry" : water.industry,
