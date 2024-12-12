@@ -157,7 +157,6 @@ def get_predictions_usage(request,district_id,year):
                 {
                     "month": data.month,
                     "rainfall": data.rainfall,
-                    "inflow_states": data.inflow_states,
                     "consumption": data.consumption,
                     "irrigation": data.irrigation,
                     "industry": data.industry,
