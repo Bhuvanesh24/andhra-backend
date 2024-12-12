@@ -232,7 +232,7 @@ def get_factors(request, district_id, year,month):
             # Retrieve the district using the district_id
             dist = District.objects.get(id=district_id)
             year = int(year)
-            month = int(year)
+            month = int(month)
             
             if year < 2014:
                 return JsonResponse({"status": "error", "message": "No data found for the given parameters"}, status=200)
