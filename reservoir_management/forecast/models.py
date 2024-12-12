@@ -34,7 +34,7 @@ class Usage(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     rainfall = models.FloatField()
-    inflow_states = models.FloatField()  # Inflow From Other States
+    # inflow_states = models.FloatField()  # Inflow From Other States
     ground_water = models.FloatField()
     soil_moisture = models.FloatField()
     reservoir = models.FloatField()
@@ -95,7 +95,7 @@ class UsagePredictionDist(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     rainfall = models.FloatField()
-    inflow_states = models.FloatField()
+    # inflow_states = models.FloatField()
     consumption = models.FloatField()
     irrigation = models.FloatField()
     industry = models.FloatField()
