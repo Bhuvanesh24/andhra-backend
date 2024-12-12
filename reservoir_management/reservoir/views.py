@@ -114,6 +114,7 @@ def reservoir_prediction(request,reservoir_id,year):
                     "gross_capacity": data.gross_capacity,
                     "current_storage": data.current_storage,
                     "year": data.year,
+                    "month" : data.month,
                 })
 
             # Return the response with the reservoir data
