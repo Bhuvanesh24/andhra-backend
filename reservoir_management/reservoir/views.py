@@ -154,9 +154,9 @@ def calculate_reservoir_health_score(request):
 
     # Weights for each parameter
     weights = {
-        'storage_capacity_ratio': 0.25,
+        'storage_capacity_ratio': 0.3,
         'siltation': 0.10,
-        'flood_cushion': 0.15,
+        'flood_cushion': 0.1,
         'evaporation': 0.10,
         'age': 0.20,
         'rainfall': 0.20
