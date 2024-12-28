@@ -112,6 +112,7 @@ def reservoir_prediction(request,reservoir_id,year):
                     "gross_capacity": data.gross_capacity,
                     "current_storage": data.current_storage,
                     "year": data.year,
+                    "month" : data.month,
                 })
 
             # Return the response with the reservoir data
@@ -151,9 +152,9 @@ def calculate_reservoir_health_score(request):
 
     # Weights for each parameter
     weights = {
-        'storage_capacity_ratio': 0.25,
+        'storage_capacity_ratio': 0.3,
         'siltation': 0.10,
-        'flood_cushion': 0.15,
+        'flood_cushion': 0.1,
         'evaporation': 0.10,
         'age': 0.20,
         'rainfall': 0.20
@@ -203,15 +204,30 @@ def get_age_siltation(request):
         
         res = Reservoir.objects.get(id=res_id)
         dist = District.objects.get(id=dist_id)
-        evap = Evaporation.objects.get(district = dist,year=year,month=month)
-        rain = Rainfall.objects.get(district=dist,year=year,month=month)
+        
+        evap = None
+        rain = None
+
+        try:
+            evap = Evaporation.objects.get(district=dist, year=year, month=month)
+        except Evaporation.DoesNotExist:
+            print(f"Evaporation data not found for district {dist}, year {year}, month {month}")
+
+        try:
+            rain = Rainfall.objects.get(district=dist, year=year, month=month)
+        except Rainfall.DoesNotExist:
+            print(f"Rainfall data not found for district {dist}, year {year}, month {month}")
 
         get = ReservoirScore.objects.get(reservoir = res,year=2024)
         silt = get.siltation
         age = get.age
-        evaporation = evap.total_evaporation
-        rainfall = rain.actual
-
+        evaporation = 50
+        rainfall = 50
+        if evap:
+            evaporation = evap.total_evaporation
+        if rain:
+            rainfall = rain.actual
+        
         return JsonResponse({"silt":silt,"age":age,"evaporation":evaporation,"rainfall":rainfall},status=200)
     
         
