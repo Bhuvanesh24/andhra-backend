@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import math
+
 
 class EnhancedLSTM(nn.Module):
     def __init__(self, input_size, lstm_layer_sizes, linear_layer_size, output_size):
@@ -129,7 +129,7 @@ class EnhancedUsageLSTM(nn.Module):
             out = self.relu(fc(out))
 
         out = self.output_layer(out)
-        out = torch.relu(out) * self.gross_capacity_weight * values
+        out = torch.relu(out)  * values
         return out
 
     def initialize_weights(self, layer):

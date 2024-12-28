@@ -13,9 +13,7 @@ from django.db import transaction
 from django.apps import apps
 
 
-# Evaporation = apps.get_model('forecast', 'Evaporation')
-# Rainfall = apps.get_model('forecast', 'Rainfall')
-# District = apss
+
 FASTAPI_URL = "http://127.0.0.1:8001/reservoir/" 
 
 

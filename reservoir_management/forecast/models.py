@@ -7,14 +7,6 @@ class District(models.Model):
         return self.name
     
 
-# class Population(models.Model):
-#     district = models.ForeignKey(District,on_delete=models.CASCADE)
-#     year = models.IntegerField(null=False)
-#     total_population = models.FloatField(null=False)
-    
-#     def __str__(self) -> str:
-#         return f"{self.year} - {self.total_population}"
-
 class LandusePast(models.Model):
     built_up = models.FloatField()
     agriculuture = models.FloatField()
@@ -34,7 +26,6 @@ class Usage(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     rainfall = models.FloatField()
-    # inflow_states = models.FloatField()  # Inflow From Other States
     ground_water = models.FloatField()
     soil_moisture = models.FloatField()
     reservoir = models.FloatField()
@@ -100,12 +91,7 @@ class UsagePredictionDist(models.Model):
     irrigation = models.FloatField()
     industry = models.FloatField()
     domestic = models.FloatField()
-    # built_up = models.FloatField(null=True)
-    # agriculuture = models.FloatField(null=True)
-    # forest = models.FloatField(null=True)
-    # wasteland = models.FloatField(null=True)
-    # wetlands = models.FloatField(null=True)
-    # waterbodies = models.FloatField(null=True)
+    
 
     def __str__(self):
         return f"{self.district} - {self.year}/{self.month}"

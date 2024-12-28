@@ -8,17 +8,16 @@ django = "*"
 psycopg2= "*"
 uvicorn = "*"
 pydantic = "*"
-gradio = "*"
-gradio-client = "*"
 fastapi = {extras = ["all"], version = "*"}
 django-cors-headers = "*"
 django-extensions = "*"
 torch = "*"
 pandas = "*"
-scikit-learn = "*"
 numpy = "*"
 scipy = "*"
 gunicorn = "*"
+scikit-learn = "1.5.2"
+requests = "*"
 
 [dev-packages]
 

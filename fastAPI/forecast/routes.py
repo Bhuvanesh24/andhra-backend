@@ -1,68 +1,73 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from src.model import EnhancedLSTM
 from pathlib import Path
 import os
-from fastapi import FastAPI, HTTPException, APIRouter
+from fastapi import  HTTPException, APIRouter
 import pickle
+
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_DIR = BASE_DIR / "forecast" / "models"
-model_path = os.path.join(MODEL_DIR,"enhanced_lstm.pt")
+model_path = os.path.join(MODEL_DIR,"enhanced_lstm_v4.pt")
 pickle_path = os.path.join(MODEL_DIR,"usage_x.pkl")
 router = APIRouter()
 
 
-
 @router.post("/get-factors/")
-async def get_factors_endpoint(request:dict):
+async def get_factors_endpoint(request: dict):
     """
     API endpoint to compute input weightage factors for the LSTM model.
     
     Returns:
         JSON response containing the computed weightage.
     """
-    print("Got")
-    print(request)
+    
 
     try:
-        # Define input size (adjust as per your model's requirement)
         input_size = 7  # Example input size
+
         
-        # Load the trained model from the specified path
         model = torch.load(model_path, map_location='cpu')
+        
+        # Extract data from request
         data = request
         values = [
-            data["Rainfall"],
-            data["Irrigation"],
-            data["Industry"],
-            data["Domestic"],
-            data["Built-up"],
-            data["Agricultural"],
-            data["Forest"],
+            data.get("Rainfall", 0),
+            data.get("Irrigation", 0),
+            data.get("Industry", 0),
+            data.get("Domestic", 0),
+            data.get("Built-up", 0),
+            data.get("Agricultural", 0),
+            data.get("Forest", 0),
         ]
-        input_data = torch.tensor(values, dtype=torch.float32).reshape(1, 1, 7)
         
+        input_data = torch.tensor(values, dtype=torch.float32).reshape(1, 1, input_size)
+
+        # Load the scaler
         with open(pickle_path, 'rb') as f:
             scaler_x = pickle.load(f)
         
         input_data_np = input_data.numpy().reshape(-1, input_size)
+       
+
+        try:
+            
+            scaled_input_data_np = scaler_x.transform(input_data_np)
+           
+
+        except Exception as e:
         
-        print("Before Trans",input_data_np)
-        # Apply the scaler
-        scaled_input_data_np = scaler_x.transform(input_data_np)
-        print("After trans",scaled_input_data_np)
-        # Convert back to PyTorch tensor
-        input_data = torch.tensor(scaled_input_data_np, dtype=torch.float32).unsqueeze(1)
+            raise HTTPException(status_code=500, detail=f"Error during scaling: {str(e)}")
+        
+        input_data = torch.tensor(scaled_input_data_np, dtype=torch.float32).unsqueeze(0)
         
         # Compute weightage
         weightage = compute_input_weightage(model, input_data)
 
-        
         return {"weightage": weightage}
     
     except Exception as e:
+        
         raise HTTPException(status_code=500, detail=f"Error computing factors: {str(e)}")
 
 
@@ -94,4 +99,5 @@ def compute_input_weightage(model, input_data, normalize=False):
         weightage = weightage / weightage.sum(dim=1, keepdim=True)
 
     return weightage.squeeze().tolist()
+
 

@@ -1,13 +1,12 @@
 import pandas as pd
 import joblib
 import os
-from fastapi import FastAPI, HTTPException, APIRouter, File, UploadFile
+from fastapi import HTTPException, APIRouter, File, UploadFile
 from .schemas import ScoreRequest
 from fastapi.responses import FileResponse
 import torch
 import pickle
 import numpy as np
-from io import StringIO
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader,Dataset
 import torch.nn as nn
@@ -69,7 +68,7 @@ async def retrain_model_endpoint(file: UploadFile = File(...)):
     """
     Endpoint to upload a CSV file, retrain the model, and generate predictions for the next 5 years.
     """
-    print("Called API")
+    
     try:
         # Ensure it's a CSV file
         if not file.filename.endswith('.csv'):
@@ -181,7 +180,7 @@ class ResDataset(Dataset):
 
 def retrain_model(data_file, model_file): 
     # Load dataset 
-    print("Called Retrain")
+    
     dataset = ResDataset(data_file) 
     train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 

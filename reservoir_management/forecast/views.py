@@ -1,14 +1,20 @@
 import requests
 from django.http import JsonResponse
 from .models import *
-import csv
+import csv , os
 from django.core.exceptions import ObjectDoesNotExist
-from io import StringIO
 from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
 from django.db.models import Sum
 from django.core.files.storage import default_storage
-from datetime import datetime
+from django.conf import settings
+
+
+
+# POPULATION_FILE =  os.path.join(settings.BASE_DIR, 'forecast', 'file', 'pop.csv')
+# MODEL_DIR = os.path.join(settings.BASE_DIR,'forecast','modes')
+# model_path = os.path.join(MODEL_DIR,"enhanced_lstm_v4.pt")
+# scalar_x_path = os.path.join(MODEL_DIR,"f_usage_x.pkl")
+# scalar_y_path = os.path.join(MODEL_DIR,"f_usage_y.pkl")
 
 FASTAPI_URL = "http://127.0.0.1:8001/forecast/"  
 
@@ -290,61 +296,4 @@ def get_factors(request, district_id, year,month):
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
-@csrf_exempt
-def retrain_and_update_data(request):
-    if request.method == "POST":
-        try:
-            # Check if a file is included in the request
-            csv_file = request.FILES.get('file')
-            if not csv_file:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "No CSV file provided."
-                }, status=400)
 
-            # Save the uploaded file temporarily
-            temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
-
-            # Send the file to FastAPI
-            fastapi_url = "http://127.0.0.1:8001/forecast/retrain"  # Replace with the actual FastAPI endpoint
-            with open(temp_file_path, 'rb') as file:
-                response = requests.post(fastapi_url, files={"file": file})
-
-            # Cleanup temporary file
-            default_storage.delete(temp_file_path)
-
-            # Handle response from FastAPI
-            if response.status_code == 200:
-                # Decode the CSV content from FastAPI response
-                csv_content = response.content.decode("utf-8")
-
-                # Call the update function with the CSV data
-                print(csv_content)
-
-                return JsonResponse({
-                    "status": "success",
-                    "message": "Data successfully updated."
-                })
-
-            else:
-                return JsonResponse({
-                    "status": "error",
-                    "message": f"FastAPI returned an error: {response.text}"
-                }, status=500)
-
-        except Exception as e:
-            return JsonResponse({
-                "status": "error",
-                "message": str(e)
-            }, status=500)
-
-    return JsonResponse({
-        "status": "error",
-        "message": "Invalid request method. Use POST."
-    }, status=405)
-
-
-
-
-
-# dist = ["Ananthapuramu","Guntur","Chittoor","Visakhapatnam","Tirupati","Kakinada","Vizianagaram","NTR","West Godavari","Anakapalli","Prakasam","Sri Sathya Sai","Palnadu","Eluru","Sri Potti Sriramulu Nellore","Kurnool","Srikakulam","Chittoor","Parvathipuram Manyam","Y.S.R Kadapa","Annamayya","Nandyal","Krishna","East Godavari","Alluri Sitharama Raju","Guntur","Ananthapuramu","Bapatla","Konaseema"]
