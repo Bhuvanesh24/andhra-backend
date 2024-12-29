@@ -366,41 +366,64 @@ def get_exports_data(request, district_id, year, month):
         if get_reservoir:
             try:
                 # Dynamically get the ReservoirPrediction model
-                ReservoirPrediction = apps.get_model('reservoir', 'ReservoirPrediction')  # Replace 'another_app' with the actual app name
-                reservoir_data = ReservoirPrediction.objects.get(district=district, year=year, month=month)
-                response_data["reservoir"] = {
-                    "gross_capacity": reservoir_data.gross_capacity,
-                    "current_storage": reservoir_data.current_storage,
-                    "rainfall": reservoir_data.rainfall,
-                    "evaporation": reservoir_data.evaporation,
-                }
+                ReservoirPrediction = apps.get_model('reservoir', 'ReservoirPrediction')  # Replace 'reservoir' with actual app name
+                reservoir_data = ReservoirPrediction.objects.filter(district=district, year=year, month=month)
+                
+                # Check if any data exists
+                if reservoir_data.exists():
+                    # Serialize the queryset into a list of dicts
+                    response_data["reservoir"] = [
+                        {
+                            "gross_capacity": data.gross_capacity,
+                            "current_storage": data.current_storage,
+                            "rainfall": data.rainfall,
+                            "evaporation": data.evaporation,
+                        }
+                        for data in reservoir_data
+                    ]
+                else:
+                    response_data["reservoir_error"] = "Reservoir prediction data not found"
             except ObjectDoesNotExist:
                 response_data["reservoir_error"] = "Reservoir prediction data not found"
             except LookupError:
                 response_data["reservoir_error"] = "ReservoirPrediction model not found in the specified app"
         else:
             try:
-                ReservoirData = apps.get_model("reservoir","ReservoirData")
-                reservoir_data = ReservoirData.objects.get(district=district, year=year, month=month)
-                response_data["reservoir"] = {
-                    "gross_capacity": reservoir_data.gross_capacity,
-                    "current_level": reservoir_data.current_level,
-                    "current_storage": reservoir_data.current_storage,
-                    "inflow": reservoir_data.inflow,
-                    "outflow": reservoir_data.outflow,
-                }
+                ReservoirData = apps.get_model("reservoir", "ReservoirData")
+                reservoir_data = ReservoirData.objects.filter(district=district, year=year, month=month)
+                
+                # Check if any data exists
+                if reservoir_data.exists():
+                    # Serialize the queryset into a list of dicts
+                    response_data["reservoir"] = [
+                        {
+                            "gross_capacity": data.gross_capacity,
+                            "current_level": data.current_level,
+                            "current_storage": data.current_storage,
+                            "inflow": data.inflow,
+                            "outflow": data.outflow,
+                        }
+                        for data in reservoir_data
+                    ]
+                else:
+                    response_data["reservoir_error"] = "Reservoir data not found"
             except ObjectDoesNotExist:
                 response_data["reservoir_error"] = "Reservoir data not found"
 
+        # Prepare CSV output
         output = io.StringIO()
         writer = csv.writer(output)
 
         # Write headers
         writer.writerow(["Key", "Value"])
 
-        # Write the response_data dictionary into rows
+        # Write the response_data into rows
         for key, value in response_data.items():
-            if isinstance(value, dict):  # Handle nested dictionaries
+            if isinstance(value, list):  # Handle lists of data (for multiple records)
+                for index, item in enumerate(value):
+                    for sub_key, sub_value in item.items():
+                        writer.writerow([f"{key}_{index + 1}.{sub_key}", sub_value])
+            elif isinstance(value, dict):  # Handle nested dictionaries (if any)
                 for sub_key, sub_value in value.items():
                     writer.writerow([f"{key}.{sub_key}", sub_value])
             else:
