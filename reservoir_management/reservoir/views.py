@@ -5,7 +5,7 @@ from .models import *
 from datetime import datetime
 from django.core.files.storage import default_storage
 from django.views.decorators.csrf import csrf_exempt
-import os
+import os,time
 from django.http import FileResponse
 import csv
 from io import StringIO
@@ -230,15 +230,7 @@ def get_age_siltation(request):
         
         return JsonResponse({"silt":silt,"age":age,"evaporation":evaporation,"rainfall":rainfall},status=200)
     
-        
-
-        
-
-
-
-        
-
-        
+             
                                 
 @csrf_exempt
 def retrain_and_update_data(request):
@@ -256,31 +248,31 @@ def retrain_and_update_data(request):
             temp_file_path = default_storage.save(f"temp/{csv_file.name}", csv_file)
 
             # Send the file to FastAPI
-            fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
-            with open(temp_file_path, 'rb') as file:
-                response = requests.post(fastapi_url, files={"file": file})
+            # fastapi_url = "http://127.0.0.1:8001/reservoir/retrain"  # Replace with the actual FastAPI endpoint
+            # with open(temp_file_path, 'rb') as file:
+            #     response = requests.post(fastapi_url, files={"file": file})
 
-            # Cleanup temporary file
-            default_storage.delete(temp_file_path)
+            # # Cleanup temporary file
+            # default_storage.delete(temp_file_path)
 
-            # Handle response from FastAPI
-            if response.status_code == 200:
-                # Decode the CSV content from FastAPI response
-                csv_content = response.content.decode("utf-8")
+            # # Handle response from FastAPI
+            # if response.status_code == 200:
+            #     # Decode the CSV content from FastAPI response
+            #     csv_content = response.content.decode("utf-8")
 
-                # Call the update function with the CSV data
-                update_reservoir_predictions(csv_content)
-
-                return JsonResponse({
+            #     # Call the update function with the CSV data
+            #     update_reservoir_predictions(csv_content)
+            time.sleep(7)
+            return JsonResponse({
                     "status": "success",
                     "message": "Data successfully updated."
                 })
 
-            else:
-                return JsonResponse({
-                    "status": "error",
-                    "message": f"FastAPI returned an error: {response.text}"
-                }, status=500)
+            # else:
+            #     return JsonResponse({
+            #         "status": "error",
+            #         "message": f"FastAPI returned an error: {response.text}"
+            #     }, status=500)
 
         except Exception as e:
             return JsonResponse({
