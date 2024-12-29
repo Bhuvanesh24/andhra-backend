@@ -5,19 +5,19 @@ name = "pypi"
 
 [packages]
 django = "*"
-psycopg2= "*"
 uvicorn = "*"
 pydantic = "*"
 fastapi = {extras = ["all"], version = "*"}
 django-cors-headers = "*"
 django-extensions = "*"
-torch = "*"
 pandas = "*"
 numpy = "*"
 scipy = "*"
 gunicorn = "*"
-scikit-learn = "1.5.2"
 requests = "*"
+torch = "*"
+scikit-learn = "==1.5.2"
+psycopg2 = "*"
 
 [dev-packages]
 
