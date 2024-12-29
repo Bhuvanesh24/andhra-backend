@@ -20,8 +20,6 @@ class LandusePast(models.Model):
     def __str__(self):
         return f"{self.district} - {self.year}"
 
-
-    
 class Usage(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()

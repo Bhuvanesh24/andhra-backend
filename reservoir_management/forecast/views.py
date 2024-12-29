@@ -297,3 +297,5 @@ def get_factors(request, district_id, year,month):
 
 
 
+
+
