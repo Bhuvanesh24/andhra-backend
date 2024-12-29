@@ -11,6 +11,7 @@ urlpatterns = [
     path('predict-luc/<int:district_id>/<int:year>/',get_predictions_luc,name='luc-predict'),
     path('get_landuse/<int:district_id>/<int:year>/', get_landuse, name='landuse-detail'),
     path('get-factors/<int:district_id>/<int:year>/<int:month>/',get_factors,name='factors'),
+    path('get-exports/<int:district_id>/<int:year>/<int:month>/',get_exports_data,name='exports'),
     # path('predict/',predict,name='prediction'),
     # path('get_population/<int:year>/', get_population, name='get-population'),
 ]

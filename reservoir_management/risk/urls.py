@@ -3,5 +3,5 @@ from .views import *
 
 
 urlpatterns = [
-    path("get-risk/<int:district_id>/<int:year>",get_data,name='get_risk_datas')
+    path("get-risk/<int:district_id>/<int:year>/<int:month>/",get_data,name='get_risk_datas')
 ]

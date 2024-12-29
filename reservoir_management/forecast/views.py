@@ -1,13 +1,16 @@
 import requests
 from django.http import JsonResponse
 from .models import *
-import csv , os
+import csv , os,io,csv
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum
 from django.core.files.storage import default_storage
 from django.conf import settings
-
+from django.http import JsonResponse
+from django.core.exceptions import ObjectDoesNotExist
+from django.apps import apps
+from django.http import HttpResponse
 
 
 # POPULATION_FILE =  os.path.join(settings.BASE_DIR, 'forecast', 'file', 'pop.csv')
@@ -296,6 +299,116 @@ def get_factors(request, district_id, year,month):
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
+# def get_eports_data(request,district_id,year,month):
+#     if request.method == "GET":
+#         get_landuse_predictions = True if year>2022 else False
+#         get_usage = True if year>2024 else False
+#         get_reservoir = True if year > 2024 else False
+#         try:
+#             # Fetch district data
+#             dist = District.objects.get(id=district_id)
+
+#             if get_landuse_predictions:
+#                 landuse = LucPredictionDist.objects.filter(district=dist, year=year).first()
+#             else:
+#                 landuse = LandusePast.objects.filter(district=dist, year=year).first()
+            
 
 
+def get_exports_data(request, district_id, year, month):
+    if request.method == "GET":
+        get_predictions = year > 2022
+        get_usage = year > 2024
+        get_reservoir = year > 2024
 
+        try:
+            # Fetch district data
+            district = District.objects.get(id=district_id)
+        except ObjectDoesNotExist:
+            return JsonResponse({"status": "error", "message": "District not found"}, status=404)
+
+        response_data = {"district": str(district), "year": year, "month": month}
+
+        # Fetch land use data
+        try:
+            if get_predictions:
+                land_use = LucPredictionDist.objects.get(district=district, year=year)
+            else:
+                land_use = LandusePast.objects.get(district=district, year=year)
+            response_data["land_use"] = {
+                "built_up": land_use.built_up,
+                "agriculture": land_use.agriculuture,
+                "forest": land_use.forest,
+                "wasteland": land_use.wasteland,
+                "wetlands": land_use.wetlands,
+                "waterbodies": land_use.waterbodies,
+            }
+        except ObjectDoesNotExist:
+            response_data["land_use_error"] = "Land use data not found"
+
+        # Fetch usage data
+        try:
+            if get_usage:
+                usage = UsagePredictionDist.objects.get(district=district, year=year, month=month)
+            else:
+                usage = Usage.objects.get(district=district, year=year, month=month)
+            response_data["usage"] = {
+                "rainfall": usage.rainfall,
+                "consumption": usage.consumption,
+                "irrigation": usage.irrigation,
+                "industry": usage.industry,
+                "domestic": usage.domestic,
+            }
+        except ObjectDoesNotExist:
+            response_data["usage_error"] = "Usage data not found"
+
+        # Fetch reservoir data
+        if get_reservoir:
+            try:
+                # Dynamically get the ReservoirPrediction model
+                ReservoirPrediction = apps.get_model('reservoir', 'ReservoirPrediction')  # Replace 'another_app' with the actual app name
+                reservoir_data = ReservoirPrediction.objects.get(district=district, year=year, month=month)
+                response_data["reservoir"] = {
+                    "gross_capacity": reservoir_data.gross_capacity,
+                    "current_storage": reservoir_data.current_storage,
+                    "rainfall": reservoir_data.rainfall,
+                    "evaporation": reservoir_data.evaporation,
+                }
+            except ObjectDoesNotExist:
+                response_data["reservoir_error"] = "Reservoir prediction data not found"
+            except LookupError:
+                response_data["reservoir_error"] = "ReservoirPrediction model not found in the specified app"
+        else:
+            try:
+                ReservoirData = apps.get_model("reservoir","ReservoirData")
+                reservoir_data = ReservoirData.objects.get(district=district, year=year, month=month)
+                response_data["reservoir"] = {
+                    "gross_capacity": reservoir_data.gross_capacity,
+                    "current_level": reservoir_data.current_level,
+                    "current_storage": reservoir_data.current_storage,
+                    "inflow": reservoir_data.inflow,
+                    "outflow": reservoir_data.outflow,
+                }
+            except ObjectDoesNotExist:
+                response_data["reservoir_error"] = "Reservoir data not found"
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write headers
+        writer.writerow(["Key", "Value"])
+
+        # Write the response_data dictionary into rows
+        for key, value in response_data.items():
+            if isinstance(value, dict):  # Handle nested dictionaries
+                for sub_key, sub_value in value.items():
+                    writer.writerow([f"{key}.{sub_key}", sub_value])
+            else:
+                writer.writerow([key, value])
+
+        # Prepare CSV response
+        output.seek(0)
+        response = HttpResponse(output, content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="report_{district_id}_{year}_{month}.csv"'
+
+        return response

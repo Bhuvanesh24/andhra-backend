@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/forecast/',include('forecast.urls')),
     path('api/reservoir/',include('reservoir.urls')),
     path('api/scenario/',include('scenario.urls')),
+    path('api/risk/',include('risk.urls')),
 ]

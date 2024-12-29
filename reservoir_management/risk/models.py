@@ -5,7 +5,7 @@ class RiskData(models.Model):
     district = models.ForeignKey("forecast.District", on_delete=models.CASCADE)
     year = models.IntegerField()
     month = models.IntegerField(null=True)
-    risk_type=models.CharField(max_length=25)
+    risk_type=models.TextField(null=True)
     description=models.TextField(null=True)
     causes = models.TextField(null=True)
     mitigation = models.TextField(null=True)
