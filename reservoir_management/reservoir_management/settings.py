@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'reservoir',
     'scenario',
     'corsheaders',
+    'risk'
 ]
 
 MIDDLEWARE = [
